@@ -9,26 +9,18 @@ import articlesRouter from './api/routes/articles.js';
 import metricsRouter from './api/routes/metrics.js';
 
 async function main() {
-  console.log('Starting izziwire...');
+  process.stdout.write('Starting izziwire...\n');
   const cfg = getConfig();
-  console.log('Config loaded, PORT=', cfg.PORT);
-
-  if (cfg.SENTRY_DSN) {
-    const Sentry = await import('@sentry/node');
-    Sentry.init({
-      dsn: cfg.SENTRY_DSN,
-      environment: cfg.DEBUG ? 'development' : 'production',
-      tracesSampleRate: 1.0,
-    });
-  }
+  const port = cfg.PORT;
+  const host = process.env.PORT ? '0.0.0.0' : 'localhost';
 
   const app = express();
   app.use(express.json());
 
+  // Health first so Railway can reach us as soon as we listen
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
-
   app.get('/api/health', async (_req, res) => {
     try {
       const prisma = getPrisma();
@@ -48,19 +40,24 @@ async function main() {
     }
   });
 
-  app.use('/api/posts', postsRouter);
-  app.use('/api/sources', sourcesRouter);
-  app.use('/api/articles', articlesRouter);
-  app.use('/api/cron', cronRouter);
-  app.use('/api/metrics', metricsRouter);
-  app.use('/webhooks', webhooksRouter);
-
-  const port = cfg.PORT;
-  // Bind to 0.0.0.0 when PORT is set by the platform (Railway, etc.) so the app accepts external traffic
-  const host = process.env.PORT ? '0.0.0.0' : 'localhost';
   app.listen(port, host, () => {
-    console.log(`Server listening on ${host}:${port}`);
+    process.stdout.write(`Server listening on ${host}:${port}\n`);
+    app.use('/api/posts', postsRouter);
+    app.use('/api/sources', sourcesRouter);
+    app.use('/api/articles', articlesRouter);
+    app.use('/api/cron', cronRouter);
+    app.use('/api/metrics', metricsRouter);
+    app.use('/webhooks', webhooksRouter);
   });
+
+  if (cfg.SENTRY_DSN) {
+    const Sentry = await import('@sentry/node');
+    Sentry.init({
+      dsn: cfg.SENTRY_DSN,
+      environment: cfg.DEBUG ? 'development' : 'production',
+      tracesSampleRate: 1.0,
+    });
+  }
 }
 
 main().catch((err) => {
