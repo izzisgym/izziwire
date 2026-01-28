@@ -1,6 +1,38 @@
 # Deploy to Railway
 
-Since you have Railway access, use this to get the API (and optionally the dashboard) running on Railway.
+Get the API (and optionally the dashboard) running on Railway.
+
+---
+
+## Get everything on Railway (quick path)
+
+1. **Railway dashboard:** [railway.app](https://railway.app) → **New Project** → **+ New** → **Database** → **PostgreSQL**.
+2. **API:** **+ New** → **GitHub Repo** → select this repo (`izzisgym/izziwire` or your fork). Root = project root.  
+   - In the API service: **Variables** → **Add reference** → Postgres → `DATABASE_URL`.  
+   - Add other vars from [.env.example](.env.example) as needed (e.g. `CRON_SECRET`, API keys).
+3. **Generate domain:** API service → **Settings** → **Networking** → **Generate domain**.  
+   - Visit `https://<your-api>.up.railway.app/health` and `/api/health` to confirm.
+4. **Dashboard (optional):** **+ New** → **GitHub Repo** → same repo, **Root directory** = `dashboard`.  
+   - Railway uses `dashboard/railway.toml` (build + `npm run start`).  
+   - Add variable `VITE_API_URL` = `https://<your-api>.up.railway.app` so the UI talks to the API.  
+   - Generate a domain for the dashboard service.
+5. **Cron (optional):** Use Railway Cron or [cron-job.org](https://cron-job.org) to `POST` to `/api/cron/scrape` and `/api/cron/publish` with header `x-cron-secret: <CRON_SECRET>`.
+
+Migrations in `prisma/migrations/` are applied on deploy; ensure they’re committed and pushed.
+
+### Using the Railway CLI
+
+From the project root:
+
+```bash
+npm i -g @railway/cli
+railway login
+railway init   # or railway link if you already have a project
+railway add    # add PostgreSQL from the menu
+railway up     # deploy (uses railway.toml)
+```
+
+After the first deploy, **Variables** → add Postgres `DATABASE_URL` reference and any vars from `.env.example`. Redeploy if needed. For the dashboard, create a second service in the same project with **Root directory** = `dashboard` and add `VITE_API_URL`.
 
 ---
 
@@ -25,11 +57,7 @@ Since you have Railway access, use this to get the API (and optionally the dashb
 5. **Port:** Railway sets `PORT` for you; the app listens on it (and on `0.0.0.0` when `RAILWAY_ENVIRONMENT` is set).
 6. Add any other variables from [.env.example](.env.example) as **Variables** (e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CRON_SECRET`, Meta keys, Slack webhook, etc.). You can leave optional ones unset.
 
-7. **Generate a migration (one-off, local):**
-   ```bash
-   npx prisma migrate dev --name initial
-   ```
-   Commit the new migration under `prisma/migrations/` so `prisma migrate deploy` on Railway has something to run.
+7. Migrations in `prisma/migrations/` are run on deploy; ensure they’re committed. (If you add schema changes, run `npx prisma migrate dev --name <name>` locally and commit the new migration.)
 
 8. Deploy. After deploy, the API will be at `https://<your-service>.up.railway.app`. Check `/health` and `/api/health`.
 
@@ -38,9 +66,9 @@ Since you have Railway access, use this to get the API (and optionally the dashb
 ## 3. (Optional) Dashboard as a second service
 
 1. **+ New** → **GitHub Repo** → same repo.
-2. Set **Root directory** to `dashboard` (so the service only sees the dashboard app).
-3. **Build:** `npm ci && npm run build`
-4. **Start:** `npm run start` (runs `serve dist -s -l $PORT`; the dashboard lists `serve` in devDependencies).
+2. Set **Root directory** to `dashboard` (so the service only sees the dashboard app). Railway will use `dashboard/railway.toml`:
+   - **Build:** `npm ci && npm run build`
+   - **Start:** `npm run start` (runs `serve dist -s -l $PORT`; the dashboard lists `serve` in devDependencies).
 5. Add variable `VITE_API_URL` = `https://<your-api-service>.up.railway.app` if the dashboard calls the API by absolute URL, or configure the dashboard to use relative `/api` and put it behind the same domain/proxy.
 
 If you keep the dashboard on the same repo but different root, the API proxy is not automatic: either point the dashboard at the API URL above or deploy the dashboard as a separate URL and set that in the dashboard env.
@@ -71,7 +99,7 @@ Suggested schedule:
 ## 5. Quick checklist
 
 - [ ] Postgres created and `DATABASE_URL` linked to the API service
-- [ ] `prisma migrate dev --name initial` run locally and migration committed
+- [ ] Migrations under `prisma/migrations/` committed and pushed
 - [ ] Other variables set in Railway (at least `DATABASE_URL`; add keys and `CRON_SECRET` when you use those features)
 - [ ] Deploy successful and `/health` returns 200
 - [ ] Cron job(s) configured with `CRON_SECRET` if you use cron endpoints
