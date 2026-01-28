@@ -58,7 +58,7 @@ model PendingPost {
   generatedImageUrl  String?      @map("generated_image_url")
   imageSource        String?      @map("image_source") // dalle | sd | original | none
   hashtags           String[]     @map("hashtags")
-  status             PostStatus   @default(PENDING) @map("status")
+  status             PostStatus   @default(pending) @map("status")
   reviewerNotes      String?      @map("reviewer_notes")
   reviewedAt         DateTime?    @map("reviewed_at")
   scheduledFor       DateTime?    @map("scheduled_for")
