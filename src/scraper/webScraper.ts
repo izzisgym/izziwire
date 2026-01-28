@@ -19,8 +19,8 @@ export async function scrape(
   const listSel = selectors.list ?? 'article, .post, .item, [role="article"]';
   const items: ArticleSnippet[] = [];
 
-  $(listSel).each((_: number, el: unknown) => {
-    const $el = $(el);
+  $(listSel).each((_: number, el) => {
+    const $el = $(el as cheerio.AnyNode);
     const linkSel = selectors.link ?? 'a[href]';
     const href = $el.find(linkSel).first().attr('href');
     let urlRes = href ?? '';
