@@ -22,6 +22,15 @@ The repo includes a **Dockerfile** so Railway builds with Docker instead of Nixp
 
 Migrations in `prisma/migrations/` are applied on deploy; ensure they’re committed and pushed.
 
+### Not responding? (URL times out or 502)
+
+1. **Logs** – API service → **Deployments** → latest deployment → **View Logs**. Look for:
+   - `Invalid config: ...` → **Variables** → add or fix `DATABASE_URL` (must be a valid Postgres URL; use **Add reference** → Postgres → `DATABASE_URL`).
+   - `prisma migrate deploy` errors → DB unreachable or wrong `DATABASE_URL`; fix the variable and redeploy.
+   - `Server listening on 0.0.0.0:XXXX` → app started; if the URL still doesn’t work, check Networking (domain and port).
+2. **Variables** – Confirm `DATABASE_URL` is set (reference to your Postgres service). Railway sets `PORT`; the app uses it.
+3. **Networking** – API service → **Settings** → **Networking** → ensure a **public domain** is generated and the deployment is using it.
+
 ### Using the Railway CLI
 
 From the project root:

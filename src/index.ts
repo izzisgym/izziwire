@@ -54,7 +54,8 @@ async function main() {
   app.use('/webhooks', webhooksRouter);
 
   const port = cfg.PORT;
-  const host = process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : 'localhost';
+  // Bind to 0.0.0.0 when PORT is set by the platform (Railway, etc.) so the app accepts external traffic
+  const host = process.env.PORT ? '0.0.0.0' : 'localhost';
   app.listen(port, host, () => {
     console.log(`Server listening on ${host}:${port}`);
   });
