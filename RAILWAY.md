@@ -2,6 +2,8 @@
 
 Get the API (and optionally the dashboard) running on Railway.
 
+The repo includes a **Dockerfile** so Railway builds with Docker instead of Nixpacks, avoiding the `EBUSY` error on `node_modules/.cache` during `npm ci`.
+
 ---
 
 ## Get everything on Railway (quick path)

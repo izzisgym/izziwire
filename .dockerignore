@@ -1,0 +1,11 @@
+node_modules
+dashboard
+.git
+.env
+.env.*
+*.log
+.DS_Store
+dist
+coverage
+.nyc_output
+*.tsbuildinfo
