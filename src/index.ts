@@ -9,7 +9,9 @@ import articlesRouter from './api/routes/articles.js';
 import metricsRouter from './api/routes/metrics.js';
 
 async function main() {
+  console.log('Starting izziwire...');
   const cfg = getConfig();
+  console.log('Config loaded, PORT=', cfg.PORT);
 
   if (cfg.SENTRY_DSN) {
     const Sentry = await import('@sentry/node');
