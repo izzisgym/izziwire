@@ -7,7 +7,6 @@ import { scrape } from './webScraper.js';
 const prisma = getPrisma();
 
 export async function runScrapeCycle(): Promise<{ scraped: number; errors: string[] }> {
-  const cfg = getConfig();
   const sources = await prisma.newsSource.findMany({
     where: { isActive: true },
     orderBy: { priority: 'desc' },

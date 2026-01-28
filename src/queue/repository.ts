@@ -1,6 +1,7 @@
 import { getPrisma } from '../api/deps.js';
 import type { PendingPostCreate, ApprovePostInput } from './types.js';
 import type { PostStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 const prisma = getPrisma();
 
@@ -34,7 +35,7 @@ export async function createPendingPost(data: PendingPostCreate) {
       generatedImageUrl: data.generatedImageUrl ?? undefined,
       imageSource: data.imageSource ?? undefined,
       hashtags: data.hashtags ?? [],
-      generationMetadata: data.generationMetadata ?? undefined,
+      generationMetadata: (data.generationMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
       status: 'pending',
     },
   });

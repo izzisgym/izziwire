@@ -13,9 +13,9 @@ router.get('/published', async (_req, res) => {
       take: 100,
       include: { pendingPost: { select: { content: true, postType: true } } },
     });
-    res.json(list);
+    return res.json(list);
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
@@ -28,9 +28,9 @@ const rejectBody = z.object({ reason: z.string().min(1) });
 router.get('/pending', async (_req, res) => {
   try {
     const list = await workflow.getPendingPosts(50);
-    res.json(list);
+    return res.json(list);
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
@@ -38,9 +38,9 @@ router.get('/:id', async (req, res) => {
   try {
     const post = await workflow.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Not found' });
-    res.json(post);
+    return res.json(post);
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
@@ -54,11 +54,11 @@ router.post('/:id/approve', async (req, res) => {
         }
       : {};
     await workflow.approvePost(req.params.id, input);
-    res.json({ ok: true, status: input.scheduledFor ? 'scheduled' : 'approved' });
+    return res.json({ ok: true, status: input.scheduledFor ? 'scheduled' : 'approved' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     const code = msg === 'Post not found' ? 404 : msg.startsWith('Invalid transition') ? 400 : 500;
-    res.status(code).json({ error: msg });
+    return res.status(code).json({ error: msg });
   }
 });
 
@@ -67,11 +67,11 @@ router.post('/:id/reject', async (req, res) => {
     const parsed = rejectBody.safeParse(req.body);
     const reason = parsed.success ? parsed.data.reason : (req.body?.reason as string) ?? 'No reason';
     await workflow.rejectPost(req.params.id, reason);
-    res.json({ ok: true, status: 'rejected' });
+    return res.json({ ok: true, status: 'rejected' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     const code = msg === 'Post not found' ? 404 : msg.startsWith('Invalid transition') ? 400 : 500;
-    res.status(code).json({ error: msg });
+    return res.status(code).json({ error: msg });
   }
 });
 
@@ -83,11 +83,11 @@ router.post('/:id/schedule', async (req, res) => {
       return res.status(400).json({ error: 'scheduledFor must be a valid ISO date string' });
     }
     await workflow.approvePost(req.params.id, { scheduledFor: d, notes: req.body?.notes });
-    res.json({ ok: true, status: 'scheduled', scheduledFor: d.toISOString() });
+    return res.json({ ok: true, status: 'scheduled', scheduledFor: d.toISOString() });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     const code = msg === 'Post not found' ? 404 : msg.startsWith('Invalid transition') ? 400 : 500;
-    res.status(code).json({ error: msg });
+    return res.status(code).json({ error: msg });
   }
 });
 

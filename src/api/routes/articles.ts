@@ -19,9 +19,9 @@ router.get('/', async (req, res) => {
       take: limit,
       include: { source: { select: { name: true, url: true } } },
     });
-    res.json(list);
+    return res.json(list);
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
@@ -32,9 +32,9 @@ router.get('/:id', async (req, res) => {
       include: { source: true },
     });
     if (!a) return res.status(404).json({ error: 'Not found' });
-    res.json(a);
+    return res.json(a);
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
@@ -50,11 +50,11 @@ router.post('/:id/generate', async (req, res) => {
       postType,
       generateImage,
     });
-    res.status(201).json({ pendingPostId: pendingId });
+    return res.status(201).json({ pendingPostId: pendingId });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     const code = msg.includes('not found') ? 404 : 500;
-    res.status(code).json({ error: msg });
+    return res.status(code).json({ error: msg });
   }
 });
 

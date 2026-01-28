@@ -49,9 +49,9 @@ function extractImage(entry: Parser.Item): string | undefined {
     const u = item.media[0].$?.url ?? item.media[0].url;
     if (u) return u;
   }
-  if (item['media:content']?.[0]) {
-    const u = (item['media:content'] as unknown as { $?: { url?: string }; url?: string })[0]?.$?.url ??
-      (item['media:content'] as unknown as { url?: string })[0]?.url;
+  const mediaContent = item['media:content'] as unknown as Array<{ $?: { url?: string }; url?: string }> | undefined;
+  if (mediaContent?.[0]) {
+    const u = mediaContent[0].$?.url ?? mediaContent[0].url;
     if (u) return u;
   }
   if (item.enclosure?.type?.startsWith('image/') && item.enclosure.url) {

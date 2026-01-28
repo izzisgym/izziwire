@@ -25,7 +25,7 @@ Focus on: Abstract card shapes, energy effects, generic fantasy elements.`;
     quality: 'standard',
     n: 1,
   });
-  const url = res.data[0]?.url;
+  const url = res.data?.[0]?.url;
   if (!url) throw new Error('No image URL returned');
   return url;
 }

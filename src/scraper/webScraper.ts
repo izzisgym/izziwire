@@ -1,4 +1,4 @@
-import cheerio, { type Element } from 'cheerio';
+import * as cheerio from 'cheerio';
 import { getConfig } from '../config.js';
 import type { ArticleSnippet } from './rssFetcher.js';
 import type { ScrapeSelector } from './base.js';
@@ -19,7 +19,7 @@ export async function scrape(
   const listSel = selectors.list ?? 'article, .post, .item, [role="article"]';
   const items: ArticleSnippet[] = [];
 
-  $(listSel).each((_: number, el: Element) => {
+  $(listSel).each((_: number, el: unknown) => {
     const $el = $(el);
     const linkSel = selectors.link ?? 'a[href]';
     const href = $el.find(linkSel).first().attr('href');

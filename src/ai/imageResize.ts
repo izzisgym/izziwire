@@ -1,5 +1,4 @@
 import sharp from 'sharp';
-import { getConfig } from '../config.js';
 
 export const PLATFORM_SIZES: Record<string, [number, number]> = {
   instagram_feed: [1080, 1350],

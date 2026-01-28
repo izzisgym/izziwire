@@ -1,7 +1,7 @@
 import { getPrisma } from '../api/deps.js';
 import { generatePost } from '../ai/contentGenerator.js';
 import { generateImage } from '../ai/imageGenerator.js';
-import type { Game, Platform } from '@prisma/client';
+import type { Platform } from '@prisma/client';
 
 const prisma = getPrisma();
 

@@ -54,9 +54,9 @@ async function main() {
   app.use('/webhooks', webhooksRouter);
 
   const port = cfg.PORT;
-  const host = process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : undefined;
+  const host = process.env.RAILWAY_ENVIRONMENT ? '0.0.0.0' : 'localhost';
   app.listen(port, host, () => {
-    console.log(`Server listening on ${host ?? 'localhost'}:${port}`);
+    console.log(`Server listening on ${host}:${port}`);
   });
 }
 
