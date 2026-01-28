@@ -28,4 +28,5 @@ COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Echo before node so we see in logs whether we reach it; then run node (so any crash is visible)
+CMD ["sh", "-c", "npx prisma migrate deploy && echo 'Prisma done, starting node...' && exec node dist/index.js"]
