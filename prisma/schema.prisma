@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model NewsSource {
+  id             String    @id @default(uuid())
+  name           String    @map("name")
+  game           Game
+  sourceType     String    @map("source_type") // rss | web | api
+  url            String    @map("url")
+  rssFeedUrl     String?   @map("rss_feed_url")
+  scrapeSelector Json?     @map("scrape_selector")
+  isActive       Boolean   @default(true) @map("is_active")
+  priority       Int       @default(5)
+  lastScrapedAt  DateTime? @map("last_scraped_at")
+  lastEtag       String?   @map("last_etag")
+  lastModified   String?   @map("last_modified")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  articles Article[]
+
+  @@map("news_sources")
+}
+
+model Article {
+  id           String    @id @default(uuid())
+  sourceId     String    @map("source_id")
+  externalId   String?   @map("external_id")
+  title        String    @map("title")
+  url          String    @unique @map("url")
+  summary      String?   @map("summary")
+  imageUrl     String?   @map("image_url")
+  publishedAt  DateTime? @map("published_at")
+  scrapedAt     DateTime  @default(now()) @map("scraped_at")
+  game         Game      @map("game")
+  contentType  String?   @map("content_type")
+  isProcessed   Boolean   @default(false) @map("is_processed")
+
+  source       NewsSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  pendingPosts PendingPost[]
+
+  @@index([game])
+  @@index([isProcessed])
+  @@map("articles")
+}
+
+model PendingPost {
+  id                 String       @id @default(uuid())
+  articleId          String?      @map("article_id")
+  content            String       @map("content")
+  platform           Platform     @map("platform")
+  postType           String       @map("post_type") // news | engagement | card_spotlight | poll
+  generatedImageUrl  String?      @map("generated_image_url")
+  imageSource        String?      @map("image_source") // dalle | sd | original | none
+  hashtags           String[]     @map("hashtags")
+  status             PostStatus   @default(PENDING) @map("status")
+  reviewerNotes      String?      @map("reviewer_notes")
+  reviewedAt         DateTime?    @map("reviewed_at")
+  scheduledFor       DateTime?    @map("scheduled_for")
+  aiModel            String?      @map("ai_model")
+  generationMetadata Json?        @map("generation_metadata")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  article         Article?         @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  publishedPosts  PublishedPost[]
+
+  @@index([status])
+  @@index([scheduledFor], map: "idx_pending_scheduled")
+  @@map("pending_posts")
+}
+
+model PublishedPost {
+  id              String    @id @default(uuid())
+  pendingPostId   String?   @map("pending_post_id")
+  platform        String    @map("platform")
+  platformPostId   String?   @map("platform_post_id")
+  publishedAt     DateTime  @default(now()) @map("published_at")
+  postUrl         String?   @map("post_url")
+  likes           Int       @default(0) @map("likes")
+  comments        Int       @default(0) @map("comments")
+  shares          Int       @default(0) @map("shares")
+  reach           Int       @default(0) @map("reach")
+  metricsUpdatedAt DateTime? @map("metrics_updated_at")
+
+  pendingPost PendingPost? @relation(fields: [pendingPostId], references: [id], onDelete: SetNull)
+
+  @@index([platform, publishedAt])
+  @@map("published_posts")
+}
+
+model SocialToken {
+  id           String    @id @default(uuid())
+  platform     String    @map("platform")
+  accountName  String?   @map("account_name")
+  pageId       String?   @map("page_id")
+  accessToken  String    @map("access_token")
+  tokenType    String?   @map("token_type")
+  expiresAt    DateTime? @map("expires_at")
+  refreshToken String?   @map("refresh_token")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("social_tokens")
+}
+
+model Setting {
+  key       String   @id
+  value     Json     @map("value")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+enum Game {
+  pokemon
+  onepiece
+  mtg
+}
+
+enum Platform {
+  facebook
+  instagram
+  both
+}
+
+enum PostStatus {
+  pending
+  approved
+  rejected
+  scheduled
+  published
+  failed
+}
