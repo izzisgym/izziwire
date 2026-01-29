@@ -6,14 +6,39 @@ interface Source {
   game: string;
   sourceType: string;
   url: string;
+  rssFeedUrl?: string | null;
+  scrapeSelector?: Record<string, string> | null;
   isActive: boolean;
   lastScrapedAt: string | null;
   priority: number;
 }
 
+interface SourceForm {
+  name: string;
+  game: string;
+  sourceType: string;
+  url: string;
+  rssFeedUrl: string;
+  priority: number;
+  isActive: boolean;
+  scrapeSelectorJson: string;
+}
+
 export default function NewsSources() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiKey, setApiKey] = useState('');
+  const [form, setForm] = useState<SourceForm>({
+    name: '',
+    game: 'pokemon',
+    sourceType: 'rss',
+    url: '',
+    rssFeedUrl: '',
+    priority: 5,
+    isActive: true,
+    scrapeSelectorJson: '',
+  });
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/sources')
@@ -27,7 +52,10 @@ export default function NewsSources() {
     try {
       await fetch(`/api/sources/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
         body: JSON.stringify({ isActive: !isActive }),
       });
       setSources((prev) =>
@@ -38,11 +66,158 @@ export default function NewsSources() {
     }
   };
 
+  const addSource = async () => {
+    setStatus(null);
+    const payload: Record<string, unknown> = {
+      name: form.name.trim(),
+      game: form.game,
+      sourceType: form.sourceType,
+      url: form.url.trim(),
+      rssFeedUrl: form.rssFeedUrl.trim() || undefined,
+      priority: form.priority,
+      isActive: form.isActive,
+    };
+    if (form.scrapeSelectorJson.trim()) {
+      try {
+        payload.scrapeSelector = JSON.parse(form.scrapeSelectorJson);
+      } catch {
+        setStatus('Invalid scrape selector JSON');
+        return;
+      }
+    }
+    const res = await fetch('/api/sources', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      setStatus(`Add failed: ${msg || res.status}`);
+      return;
+    }
+    const created = (await res.json()) as Source;
+    setSources((prev) => [created, ...prev]);
+    setForm({
+      name: '',
+      game: 'pokemon',
+      sourceType: 'rss',
+      url: '',
+      rssFeedUrl: '',
+      priority: 5,
+      isActive: true,
+      scrapeSelectorJson: '',
+    });
+    setStatus('Source added');
+  };
+
   return (
     <>
       <div className="page-header">
         <h1 className="page-title">News Sources</h1>
         <p className="page-subtitle">Manage your TCG news sources for content generation</p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 18, marginBottom: 16, fontWeight: 600 }}>Add Source</h2>
+        <div style={{ maxWidth: 560, display: 'grid', gap: 12 }}>
+          <label>
+            API key (required to save)
+            <input
+              type="password"
+              placeholder="Enter API key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            />
+          </label>
+          <label>
+            Name
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            />
+          </label>
+          <label>
+            Game
+            <select
+              value={form.game}
+              onChange={(e) => setForm({ ...form, game: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            >
+              <option value="pokemon">Pokemon</option>
+              <option value="onepiece">One Piece</option>
+              <option value="mtg">Magic: The Gathering</option>
+            </select>
+          </label>
+          <label>
+            Source type
+            <select
+              value={form.sourceType}
+              onChange={(e) => setForm({ ...form, sourceType: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            >
+              <option value="rss">RSS</option>
+              <option value="web">Web</option>
+              <option value="api">API</option>
+            </select>
+          </label>
+          <label>
+            URL
+            <input
+              type="text"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            />
+          </label>
+          <label>
+            RSS feed URL (optional)
+            <input
+              type="text"
+              value={form.rssFeedUrl}
+              onChange={(e) => setForm({ ...form, rssFeedUrl: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            />
+          </label>
+          <label>
+            Priority
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: Number(e.target.value) || 1 })}
+              style={{ width: '100%', padding: 8, marginTop: 4 }}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={form.isActive}
+              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            />
+            Active
+          </label>
+          <label>
+            Scrape selector JSON (optional)
+            <textarea
+              rows={4}
+              placeholder='{"list": "article", "title": "h2"}'
+              value={form.scrapeSelectorJson}
+              onChange={(e) => setForm({ ...form, scrapeSelectorJson: e.target.value })}
+              style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+            />
+          </label>
+          <button onClick={addSource} style={{ padding: '10px 14px' }}>
+            Add source
+          </button>
+          {status && <div>{status}</div>}
+        </div>
       </div>
 
       {loading && (
