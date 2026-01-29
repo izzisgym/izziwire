@@ -57,7 +57,7 @@ async function main() {
 
   if (hasDashboard) {
     app.use(express.static(dashboardDist));
-    app.get('*', (req, res) => {
+    app.get('/*', (req, res) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/webhooks')) {
         return res.status(404).json({ error: 'Not found' });
       }
