@@ -57,9 +57,10 @@ async function main() {
 
   if (hasDashboard) {
     app.use(express.static(dashboardDist));
-    app.get('/*', (req, res) => {
-      if (req.path.startsWith('/api') || req.path.startsWith('/webhooks')) {
-        return res.status(404).json({ error: 'Not found' });
+    // SPA fallback - serve index.html for non-API routes
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/webhooks') || req.path === '/health') {
+        return next();
       }
       return res.sendFile(path.join(dashboardDist, 'index.html'));
     });
