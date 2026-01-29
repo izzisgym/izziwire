@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 
+interface MetricsData {
+  pending: number;
+  publishedToday: number;
+}
+
 export default function Metrics() {
-  const [data, setData] = useState<{ pending: number; publishedToday: number } | null>(null);
+  const [data, setData] = useState<MetricsData | null>(null);
 
   useEffect(() => {
     fetch('/api/metrics')
@@ -13,9 +18,15 @@ export default function Metrics() {
   if (!data) return null;
 
   return (
-    <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
-      <span>Pending: {data.pending}</span>
-      <span>Published today: {data.publishedToday}</span>
+    <div className="metrics-bar">
+      <div className="metric-card pending">
+        <div className="metric-label">Pending Review</div>
+        <div className="metric-value">{data.pending}</div>
+      </div>
+      <div className="metric-card published">
+        <div className="metric-label">Published Today</div>
+        <div className="metric-value">{data.publishedToday}</div>
+      </div>
     </div>
   );
 }
