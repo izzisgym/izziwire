@@ -9,7 +9,11 @@ export type SettingKey =
   | 'DEFAULT_AI_MODEL'
   | 'IMAGE_MODEL'
   | 'SCRAPE_ENABLED'
-  | 'PUBLISH_ENABLED';
+  | 'PUBLISH_ENABLED'
+  | 'NEWS_SEARCH_ENABLED'
+  | 'NEWS_TOPICS_POKEMON'
+  | 'NEWS_TOPICS_ONEPIECE'
+  | 'NEWS_TOPICS_MTG';
 
 type SettingsMap = {
   SCRAPE_INTERVAL_HOURS: number;
@@ -18,6 +22,10 @@ type SettingsMap = {
   IMAGE_MODEL: string;
   SCRAPE_ENABLED: boolean;
   PUBLISH_ENABLED: boolean;
+  NEWS_SEARCH_ENABLED: boolean;
+  NEWS_TOPICS_POKEMON: string[];
+  NEWS_TOPICS_ONEPIECE: string[];
+  NEWS_TOPICS_MTG: string[];
 };
 
 const cache: Partial<SettingsMap> = {};

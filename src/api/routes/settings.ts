@@ -13,6 +13,10 @@ const settingsSchema = z.object({
   IMAGE_MODEL: z.string().min(1).optional(),
   SCRAPE_ENABLED: z.boolean().optional(),
   PUBLISH_ENABLED: z.boolean().optional(),
+  NEWS_SEARCH_ENABLED: z.boolean().optional(),
+  NEWS_TOPICS_POKEMON: z.array(z.string().min(1)).optional(),
+  NEWS_TOPICS_ONEPIECE: z.array(z.string().min(1)).optional(),
+  NEWS_TOPICS_MTG: z.array(z.string().min(1)).optional(),
 });
 
 function defaultsFromConfig() {
@@ -24,6 +28,10 @@ function defaultsFromConfig() {
     IMAGE_MODEL: cfg.IMAGE_MODEL,
     SCRAPE_ENABLED: true,
     PUBLISH_ENABLED: true,
+    NEWS_SEARCH_ENABLED: true,
+    NEWS_TOPICS_POKEMON: [],
+    NEWS_TOPICS_ONEPIECE: [],
+    NEWS_TOPICS_MTG: [],
   };
 }
 

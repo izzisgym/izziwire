@@ -12,6 +12,10 @@ interface SettingsPayload {
   IMAGE_MODEL: string;
   SCRAPE_ENABLED: boolean;
   PUBLISH_ENABLED: boolean;
+  NEWS_SEARCH_ENABLED: boolean;
+  NEWS_TOPICS_POKEMON: string[];
+  NEWS_TOPICS_ONEPIECE: string[];
+  NEWS_TOPICS_MTG: string[];
 }
 
 export default function Settings() {
@@ -21,6 +25,13 @@ export default function Settings() {
   const [form, setForm] = useState<SettingsPayload | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+
+  const topicsToText = (topics: string[]) => topics.join('\n');
+  const textToTopics = (value: string) =>
+    value
+      .split('\n')
+      .map((t) => t.trim())
+      .filter(Boolean);
 
   useEffect(() => {
     fetch('/api/metrics')
@@ -206,10 +217,51 @@ export default function Settings() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input
                   type="checkbox"
+                  checked={form.NEWS_SEARCH_ENABLED}
+                  onChange={(e) => setForm({ ...form, NEWS_SEARCH_ENABLED: e.target.checked })}
+                />
+                Claude news search enabled (open web)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
                   checked={form.PUBLISH_ENABLED}
                   onChange={(e) => setForm({ ...form, PUBLISH_ENABLED: e.target.checked })}
                 />
                 Publishing enabled
+              </label>
+              <label>
+                Pokemon topics (one per line)
+                <textarea
+                  rows={4}
+                  value={topicsToText(form.NEWS_TOPICS_POKEMON)}
+                  onChange={(e) =>
+                    setForm({ ...form, NEWS_TOPICS_POKEMON: textToTopics(e.target.value) })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
+              </label>
+              <label>
+                One Piece topics (one per line)
+                <textarea
+                  rows={4}
+                  value={topicsToText(form.NEWS_TOPICS_ONEPIECE)}
+                  onChange={(e) =>
+                    setForm({ ...form, NEWS_TOPICS_ONEPIECE: textToTopics(e.target.value) })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
+              </label>
+              <label>
+                MTG topics (one per line)
+                <textarea
+                  rows={4}
+                  value={topicsToText(form.NEWS_TOPICS_MTG)}
+                  onChange={(e) =>
+                    setForm({ ...form, NEWS_TOPICS_MTG: textToTopics(e.target.value) })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
               </label>
               <button onClick={save} style={{ padding: '10px 14px' }}>
                 Save settings
@@ -217,7 +269,7 @@ export default function Settings() {
               {saveStatus && <div>{saveStatus}</div>}
               {settings && (
                 <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                  Settings are stored in the database. Scrape interval changes take effect the next time the scheduler starts.
+                  Settings are stored in the database. Search interval changes take effect the next time the scheduler starts.
                 </div>
               )}
             </>

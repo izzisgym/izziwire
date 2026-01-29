@@ -11,7 +11,7 @@ The repo includes a **Dockerfile** so Railway builds with Docker instead of Nixp
 1. **Railway dashboard:** [railway.app](https://railway.app) → **New Project** → **+ New** → **Database** → **PostgreSQL**.
 2. **API:** **+ New** → **GitHub Repo** → select this repo (`izzisgym/izziwire` or your fork). Root = project root.  
    - In the API service: **Variables** → **Add reference** → Postgres → `DATABASE_URL`.  
-   - Add `API_KEY` (required for write/admin endpoints) and other vars from [.env.example](.env.example) as needed (e.g. `CRON_SECRET`, API keys).
+   - Add `API_KEY` (required for write/admin endpoints) and other vars from [.env.example](.env.example) as needed (e.g. `CRON_SECRET`, `TAVILY_API_KEY`, API keys).
 3. **Generate domain:** API service → **Settings** → **Networking** → **Generate domain**.  
    - Visit `https://<your-api>.up.railway.app/health` and `/api/health` to confirm.
 4. **Dashboard (optional):** **+ New** → **GitHub Repo** → same repo, **Root directory** = `dashboard`.  

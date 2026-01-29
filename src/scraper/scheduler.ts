@@ -4,10 +4,17 @@ import { getConfig } from '../config.js';
 import { fetchFeed } from './rssFetcher.js';
 import { scrape } from './webScraper.js';
 import { getSetting } from '../settings/store.js';
+import { runSearchCycle } from '../search/newsSearch.js';
 
 const prisma = getPrisma();
 
 export async function runScrapeCycle(): Promise<{ scraped: number; errors: string[] }> {
+  const searchEnabled = await getSetting('NEWS_SEARCH_ENABLED', true);
+  if (searchEnabled) {
+    const { created, errors } = await runSearchCycle();
+    return { scraped: created, errors };
+  }
+
   const enabled = await getSetting('SCRAPE_ENABLED', true);
   if (!enabled) {
     return { scraped: 0, errors: ['Scrape disabled'] };
