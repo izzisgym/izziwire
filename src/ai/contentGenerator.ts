@@ -1,11 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getConfig } from '../config.js';
+import { getSetting } from '../settings/store.js';
 import { NEWS_POST_SYSTEM, newsPostUserTemplate } from './prompts/newsPost.js';
 import { ENGAGEMENT_SYSTEM, engagementUserTemplate } from './prompts/engagement.js';
 import { CARD_SPOTLIGHT_SYSTEM, cardSpotlightUserTemplate } from './prompts/cardSpotlight.js';
 import { pickOpening, pickCharLimit } from './variation.js';
-
-const cfg = getConfig();
 
 type PostType = 'news' | 'engagement' | 'card_spotlight' | 'poll';
 
@@ -40,6 +39,7 @@ export async function generatePost(params: {
   cardName?: string;
   details?: string;
 }): Promise<GeneratePostResult> {
+  const cfg = getConfig();
   const postType = params.postType ?? 'news';
   const platform = params.platform ?? 'instagram';
   const game = params.game ?? 'pokemon';
@@ -74,7 +74,7 @@ export async function generatePost(params: {
   }
 
   const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY ?? '' });
-  const model = cfg.DEFAULT_AI_MODEL;
+  const model = await getSetting('DEFAULT_AI_MODEL', cfg.DEFAULT_AI_MODEL);
   const msg = await anthropic.messages.create({
     model,
     max_tokens: 500,

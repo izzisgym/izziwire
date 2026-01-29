@@ -3,14 +3,16 @@ import { getConfig } from '../config.js';
 import type { ArticleSnippet } from './rssFetcher.js';
 import type { ScrapeSelector } from './base.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
+import { getSetting } from '../settings/store.js';
 
 export async function scrape(
   url: string,
   selectors: ScrapeSelector
 ): Promise<ArticleSnippet[]> {
   const cfg = getConfig();
+  const userAgent = await getSetting('USER_AGENT', cfg.USER_AGENT);
   const res = await fetchWithTimeout(url, {
-    headers: { 'User-Agent': cfg.USER_AGENT },
+    headers: { 'User-Agent': userAgent },
   });
   if (!res.ok) {
     throw new Error(`Scrape failed: ${res.status} ${res.statusText} ${url}`);

@@ -1,13 +1,13 @@
 import OpenAI from 'openai';
 import { getConfig } from '../config.js';
-
-const cfg = getConfig();
+import { getSetting } from '../settings/store.js';
 
 export async function generateImage(params: {
   topic: string;
   game: string;
   style?: string;
 }): Promise<string> {
+  const cfg = getConfig();
   const { topic, game, style = 'modern_tcg' } = params;
   const safePrompt = `Create a ${style} themed illustration for social media.
 Theme: ${topic}
@@ -17,7 +17,7 @@ DO NOT include any copyrighted characters, logos, or specific card designs.
 Focus on: Abstract card shapes, energy effects, generic fantasy elements.`;
 
   const openai = new OpenAI({ apiKey: cfg.OPENAI_API_KEY ?? '' });
-  const model = cfg.IMAGE_MODEL as 'dall-e-3' | 'dall-e-2';
+  const model = (await getSetting('IMAGE_MODEL', cfg.IMAGE_MODEL)) as 'dall-e-3' | 'dall-e-2';
   const res = await openai.images.generate({
     model,
     prompt: safePrompt,

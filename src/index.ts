@@ -10,6 +10,7 @@ import cronRouter from './api/routes/cron.js';
 import sourcesRouter from './api/routes/sources.js';
 import articlesRouter from './api/routes/articles.js';
 import metricsRouter from './api/routes/metrics.js';
+import settingsRouter from './api/routes/settings.js';
 
 async function main() {
   process.stdout.write('Starting izziwire...\n');
@@ -53,6 +54,7 @@ async function main() {
   app.use('/api/articles', articlesRouter);
   app.use('/api/cron', cronRouter);
   app.use('/api/metrics', metricsRouter);
+  app.use('/api/settings', settingsRouter);
   app.use('/webhooks', webhooksRouter);
 
   if (hasDashboard) {

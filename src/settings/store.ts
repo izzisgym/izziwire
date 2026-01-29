@@ -1,0 +1,78 @@
+import { getPrisma } from '../api/deps.js';
+import type { Prisma } from '@prisma/client';
+
+const prisma = getPrisma();
+
+export type SettingKey =
+  | 'SCRAPE_INTERVAL_HOURS'
+  | 'USER_AGENT'
+  | 'DEFAULT_AI_MODEL'
+  | 'IMAGE_MODEL'
+  | 'SCRAPE_ENABLED'
+  | 'PUBLISH_ENABLED';
+
+type SettingsMap = {
+  SCRAPE_INTERVAL_HOURS: number;
+  USER_AGENT: string;
+  DEFAULT_AI_MODEL: string;
+  IMAGE_MODEL: string;
+  SCRAPE_ENABLED: boolean;
+  PUBLISH_ENABLED: boolean;
+};
+
+const cache: Partial<SettingsMap> = {};
+let cacheAt = 0;
+const CACHE_TTL_MS = 30_000;
+
+function nowMs() {
+  return Date.now();
+}
+
+function isCacheFresh() {
+  return nowMs() - cacheAt < CACHE_TTL_MS;
+}
+
+export async function getSetting<K extends SettingKey>(
+  key: K,
+  fallback: SettingsMap[K]
+): Promise<SettingsMap[K]> {
+  if (isCacheFresh() && key in cache) {
+    return cache[key] as SettingsMap[K];
+  }
+  const row = await prisma.setting.findUnique({ where: { key } });
+  const value = row?.value as Prisma.JsonValue | undefined;
+  const resolved = (value ?? fallback) as SettingsMap[K];
+  cache[key] = resolved;
+  cacheAt = nowMs();
+  return resolved;
+}
+
+export async function getAllSettings(defaults: SettingsMap): Promise<SettingsMap> {
+  if (isCacheFresh() && Object.keys(cache).length) {
+    return { ...defaults, ...cache } as SettingsMap;
+  }
+  const rows = await prisma.setting.findMany({
+    where: { key: { in: Object.keys(defaults) } },
+  });
+  const result = { ...defaults } as SettingsMap;
+  for (const row of rows) {
+    const key = row.key as SettingKey;
+    (result as Record<SettingKey, SettingsMap[SettingKey]>)[key] = row.value as SettingsMap[SettingKey];
+  }
+  Object.assign(cache, result);
+  cacheAt = nowMs();
+  return result;
+}
+
+export async function setSettings(updates: Partial<SettingsMap>): Promise<void> {
+  const entries = Object.entries(updates) as [SettingKey, SettingsMap[SettingKey]][];
+  for (const [key, value] of entries) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+    (cache as Record<SettingKey, SettingsMap[SettingKey]>)[key] = value;
+  }
+  cacheAt = nowMs();
+}

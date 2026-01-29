@@ -3,10 +3,15 @@ import { getPrisma } from '../api/deps.js';
 import { getConfig } from '../config.js';
 import { fetchFeed } from './rssFetcher.js';
 import { scrape } from './webScraper.js';
+import { getSetting } from '../settings/store.js';
 
 const prisma = getPrisma();
 
 export async function runScrapeCycle(): Promise<{ scraped: number; errors: string[] }> {
+  const enabled = await getSetting('SCRAPE_ENABLED', true);
+  if (!enabled) {
+    return { scraped: 0, errors: ['Scrape disabled'] };
+  }
   const sources = await prisma.newsSource.findMany({
     where: { isActive: true },
     orderBy: { priority: 'desc' },
@@ -90,9 +95,10 @@ export async function runScrapeCycle(): Promise<{ scraped: number; errors: strin
   return { scraped, errors };
 }
 
-export function startScheduler(): void {
+export async function startScheduler(): Promise<void> {
   const cfg = getConfig();
-  const expr = `0 */${cfg.SCRAPE_INTERVAL_HOURS} * * *`; // every N hours
+  const interval = await getSetting('SCRAPE_INTERVAL_HOURS', cfg.SCRAPE_INTERVAL_HOURS);
+  const expr = `0 */${interval} * * *`; // every N hours
   cron.schedule(expr, async () => {
     try {
       const { scraped, errors } = await runScrapeCycle();
@@ -102,5 +108,5 @@ export function startScheduler(): void {
       console.error('Scrape cycle failed:', e);
     }
   });
-  console.log(`Scheduler started: every ${cfg.SCRAPE_INTERVAL_HOURS} hours`);
+  console.log(`Scheduler started: every ${interval} hours`);
 }

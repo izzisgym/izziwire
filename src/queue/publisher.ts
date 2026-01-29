@@ -3,11 +3,16 @@ import { postToPage } from '../social/facebook.js';
 import { publishPhoto } from '../social/instagram.js';
 import { sendSlackNotification } from '../notifications/slack.js';
 import { retry } from '../lib/retry.js';
+import { getSetting } from '../settings/store.js';
 
 const prisma = getPrisma();
 
 export async function runPublishCycle(): Promise<{ published: number; errors: string[] }> {
   const now = new Date();
+  const enabled = await getSetting('PUBLISH_ENABLED', true);
+  if (!enabled) {
+    return { published: 0, errors: ['Publish disabled'] };
+  }
   const batchSize = 25;
   let published = 0;
   const errors: string[] = [];

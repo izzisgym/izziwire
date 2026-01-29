@@ -1,6 +1,7 @@
 import Parser from 'rss-parser';
 import { getConfig } from '../config.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
+import { getSetting } from '../settings/store.js';
 
 export interface ArticleSnippet {
   title: string;
@@ -83,9 +84,10 @@ export async function fetchFeed(
 ): Promise<FetchFeedResult> {
   checkRateLimit(feedUrl);
   const cfg = getConfig();
+  const userAgent = await getSetting('USER_AGENT', cfg.USER_AGENT);
 
   const opts: RequestInit = {
-    headers: { 'User-Agent': cfg.USER_AGENT },
+    headers: { 'User-Agent': userAgent },
   };
   if (etag) (opts.headers as Record<string, string>)['If-None-Match'] = etag;
   if (modified) (opts.headers as Record<string, string>)['If-Modified-Since'] = modified;
