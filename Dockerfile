@@ -11,7 +11,10 @@ COPY package.json ./
 RUN npm install
 
 COPY . .
-RUN npx prisma generate && npm run build
+RUN npx prisma generate \
+  && npm run build \
+  && npm --prefix dashboard install \
+  && npm --prefix dashboard run build
 
 # Runtime
 FROM node:20-bookworm-slim AS runner
@@ -24,6 +27,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends openssl ca-
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/dashboard/dist ./dashboard/dist
 COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000

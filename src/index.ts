@@ -1,4 +1,7 @@
 import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getConfig } from './config.js';
 import { getPrisma } from './api/deps.js';
 import postsRouter from './api/routes/posts.js';
@@ -16,6 +19,11 @@ async function main() {
 
   const app = express();
   app.use(express.json());
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const dashboardDist = path.resolve(__dirname, '../dashboard/dist');
+  const hasDashboard = fs.existsSync(path.join(dashboardDist, 'index.html'));
 
   // Health first so Railway can reach us as soon as we listen
   app.get('/health', (_req, res) => {
@@ -40,14 +48,25 @@ async function main() {
     }
   });
 
+  app.use('/api/posts', postsRouter);
+  app.use('/api/sources', sourcesRouter);
+  app.use('/api/articles', articlesRouter);
+  app.use('/api/cron', cronRouter);
+  app.use('/api/metrics', metricsRouter);
+  app.use('/webhooks', webhooksRouter);
+
+  if (hasDashboard) {
+    app.use(express.static(dashboardDist));
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api') || req.path.startsWith('/webhooks')) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+      return res.sendFile(path.join(dashboardDist, 'index.html'));
+    });
+  }
+
   app.listen(port, host, () => {
     process.stdout.write(`Server listening on ${host}:${port}\n`);
-    app.use('/api/posts', postsRouter);
-    app.use('/api/sources', sourcesRouter);
-    app.use('/api/articles', articlesRouter);
-    app.use('/api/cron', cronRouter);
-    app.use('/api/metrics', metricsRouter);
-    app.use('/webhooks', webhooksRouter);
   });
 
   if (cfg.SENTRY_DSN) {
