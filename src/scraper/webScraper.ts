@@ -2,13 +2,14 @@ import * as cheerio from 'cheerio';
 import { getConfig } from '../config.js';
 import type { ArticleSnippet } from './rssFetcher.js';
 import type { ScrapeSelector } from './base.js';
+import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
 export async function scrape(
   url: string,
   selectors: ScrapeSelector
 ): Promise<ArticleSnippet[]> {
   const cfg = getConfig();
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     headers: { 'User-Agent': cfg.USER_AGENT },
   });
   if (!res.ok) {

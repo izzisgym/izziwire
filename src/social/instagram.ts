@@ -1,4 +1,5 @@
 import { getMetaTokens } from './auth.js';
+import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
 const BASE = 'https://graph.facebook.com/v22.0';
 
@@ -13,7 +14,7 @@ export async function publishPhoto(params: {
       `${params.caption}\n\n${params.hashtags.map((t) => `#${t}`).join(' ')}`
     : params.caption;
 
-  const createRes = await fetch(
+  const createRes = await fetchWithTimeout(
     `${BASE}/${instagramUserId}/media?image_url=${encodeURIComponent(params.imageUrl)}&caption=${encodeURIComponent(caption)}&access_token=${encodeURIComponent(pageAccessToken)}`,
     { method: 'POST' }
   );
@@ -24,7 +25,7 @@ export async function publishPhoto(params: {
 
   for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 2000));
-    const statusRes = await fetch(
+    const statusRes = await fetchWithTimeout(
       `${BASE}/${containerId}?fields=status_code&access_token=${encodeURIComponent(pageAccessToken)}`
     );
     const statusData = (await statusRes.json()) as { status_code?: string; error?: { message: string } };
@@ -33,7 +34,7 @@ export async function publishPhoto(params: {
     if (statusData.status_code === 'ERROR') throw new Error('Container creation failed');
   }
 
-  const publishRes = await fetch(
+  const publishRes = await fetchWithTimeout(
     `${BASE}/${instagramUserId}/media_publish?creation_id=${containerId}&access_token=${encodeURIComponent(pageAccessToken)}`,
     { method: 'POST' }
   );

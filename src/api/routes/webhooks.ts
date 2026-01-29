@@ -2,9 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { getConfig } from '../../config.js';
 
 const router = Router();
-const cfg = getConfig();
-
 router.get('/meta', (req: Request, res: Response) => {
+  const cfg = getConfig();
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];

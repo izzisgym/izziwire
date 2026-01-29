@@ -1,8 +1,13 @@
 import { Router } from 'express';
 import * as workflow from '../../queue/workflow.js';
 import { z } from 'zod';
+import { requireApiKey } from '../auth.js';
 
 const router = Router();
+
+function getParamId(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 router.get('/published', async (_req, res) => {
   try {
@@ -44,8 +49,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/approve', async (req, res) => {
+router.post('/:id/approve', requireApiKey, async (req, res) => {
   try {
+    const postId = getParamId(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'Missing post id' });
     const parsed = approveBody.safeParse(req.body);
     const input = parsed.success
       ? {
@@ -53,7 +60,7 @@ router.post('/:id/approve', async (req, res) => {
           notes: parsed.data.notes,
         }
       : {};
-    await workflow.approvePost(req.params.id, input);
+    await workflow.approvePost(postId, input);
     return res.json({ ok: true, status: input.scheduledFor ? 'scheduled' : 'approved' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -62,11 +69,13 @@ router.post('/:id/approve', async (req, res) => {
   }
 });
 
-router.post('/:id/reject', async (req, res) => {
+router.post('/:id/reject', requireApiKey, async (req, res) => {
   try {
+    const postId = getParamId(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'Missing post id' });
     const parsed = rejectBody.safeParse(req.body);
     const reason = parsed.success ? parsed.data.reason : (req.body?.reason as string) ?? 'No reason';
-    await workflow.rejectPost(req.params.id, reason);
+    await workflow.rejectPost(postId, reason);
     return res.json({ ok: true, status: 'rejected' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
@@ -75,14 +84,16 @@ router.post('/:id/reject', async (req, res) => {
   }
 });
 
-router.post('/:id/schedule', async (req, res) => {
+router.post('/:id/schedule', requireApiKey, async (req, res) => {
   try {
+    const postId = getParamId(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'Missing post id' });
     const scheduledFor = req.body?.scheduledFor;
     const d = scheduledFor ? new Date(scheduledFor) : undefined;
     if (!d || Number.isNaN(d.getTime())) {
       return res.status(400).json({ error: 'scheduledFor must be a valid ISO date string' });
     }
-    await workflow.approvePost(req.params.id, { scheduledFor: d, notes: req.body?.notes });
+    await workflow.approvePost(postId, { scheduledFor: d, notes: req.body?.notes });
     return res.json({ ok: true, status: 'scheduled', scheduledFor: d.toISOString() });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';

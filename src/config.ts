@@ -37,6 +37,7 @@ const envSchema = z.object({
   DEFAULT_AI_MODEL: z.string().default('claude-sonnet-4-5-20250514'),
   IMAGE_MODEL: z.string().default('dall-e-3'),
   DEBUG: z.coerce.boolean().default(false),
+  API_KEY: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),
 });
 
@@ -48,7 +49,7 @@ export function getConfig(): Config {
   if (cached) return cached;
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
-    const msg = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+    const msg = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
     throw new Error(`Invalid config: ${msg}`);
   }
   cached = parsed.data;

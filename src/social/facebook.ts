@@ -1,4 +1,5 @@
 import { getMetaTokens } from './auth.js';
+import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
 const BASE = 'https://graph.facebook.com/v22.0';
 
@@ -14,7 +15,7 @@ export async function postToPage(params: {
   if (params.link) form.set('link', params.link);
   if (params.picture) form.set('url', params.picture);
 
-  const res = await fetch(`${BASE}/${pageId}/feed`, {
+  const res = await fetchWithTimeout(`${BASE}/${pageId}/feed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: form.toString(),

@@ -1,5 +1,6 @@
 import Parser from 'rss-parser';
 import { getConfig } from '../config.js';
+import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
 export interface ArticleSnippet {
   title: string;
@@ -80,7 +81,7 @@ export async function fetchFeed(
   etag: string | null = null,
   modified: string | null = null
 ): Promise<FetchFeedResult> {
-  checkRateLimit('rss_fetch');
+  checkRateLimit(feedUrl);
   const cfg = getConfig();
 
   const opts: RequestInit = {
@@ -89,7 +90,7 @@ export async function fetchFeed(
   if (etag) (opts.headers as Record<string, string>)['If-None-Match'] = etag;
   if (modified) (opts.headers as Record<string, string>)['If-Modified-Since'] = modified;
 
-  const res = await fetch(feedUrl, opts);
+  const res = await fetchWithTimeout(feedUrl, opts);
   if (res.status === 304) {
     return { articles: [], etag, modified };
   }

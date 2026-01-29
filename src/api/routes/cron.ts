@@ -9,6 +9,7 @@ function requireCronSecret(req: Request, res: Response, next: () => void) {
   const cfg = getConfig();
   const secret = req.headers['x-cron-secret'] ?? req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!cfg.CRON_SECRET || secret !== cfg.CRON_SECRET) {
+    console.warn(`Unauthorized cron request from ${req.ip ?? 'unknown'}`);
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

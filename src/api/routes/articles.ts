@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { getPrisma } from '../deps.js';
 import { runPipelineForArticle } from '../../queue/pipeline.js';
+import { requireApiKey } from '../auth.js';
 
 const router = Router();
 const prisma = getPrisma();
+
+function getParamId(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -38,9 +43,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/generate', async (req, res) => {
+router.post('/:id/generate', requireApiKey, async (req, res) => {
   try {
-    const articleId = req.params.id;
+    const articleId = getParamId(req.params.id);
+    if (!articleId) return res.status(400).json({ error: 'Missing article id' });
     const platform = (req.body?.platform ?? 'instagram') as string;
     const postType = (req.body?.postType ?? 'news') as string;
     const generateImage = Boolean(req.body?.generateImage);
