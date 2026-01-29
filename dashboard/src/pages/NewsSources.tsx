@@ -27,7 +27,6 @@ interface SourceForm {
 export default function NewsSources() {
   const [sources, setSources] = useState<Source[]>([]);
   const [loading, setLoading] = useState(true);
-  const [apiKey, setApiKey] = useState('');
   const [form, setForm] = useState<SourceForm>({
     name: '',
     game: 'pokemon',
@@ -48,8 +47,11 @@ export default function NewsSources() {
       .finally(() => setLoading(false));
   }, []);
 
+  const getApiKey = () => localStorage.getItem('izziwire_api_key') ?? '';
+
   const toggleActive = async (id: string, isActive: boolean) => {
     try {
+      const apiKey = getApiKey();
       await fetch(`/api/sources/${id}`, {
         method: 'PUT',
         headers: {
@@ -68,6 +70,7 @@ export default function NewsSources() {
 
   const addSource = async () => {
     setStatus(null);
+    const apiKey = getApiKey();
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       game: form.game,
@@ -123,16 +126,9 @@ export default function NewsSources() {
       <div className="card" style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 18, marginBottom: 16, fontWeight: 600 }}>Add Source</h2>
         <div style={{ maxWidth: 560, display: 'grid', gap: 12 }}>
-          <label>
-            API key (required to save)
-            <input
-              type="password"
-              placeholder="Enter API key"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              style={{ width: '100%', padding: 8, marginTop: 4 }}
-            />
-          </label>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            Saving sources requires an API key. Set it in the Settings page once and it will be reused here.
+          </div>
           <label>
             Name
             <input

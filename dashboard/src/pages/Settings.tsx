@@ -43,6 +43,15 @@ export default function Settings() {
       });
   }, []);
 
+  useEffect(() => {
+    const saved = localStorage.getItem('izziwire_api_key');
+    if (saved) setApiKey(saved);
+  }, []);
+
+  useEffect(() => {
+    if (apiKey) localStorage.setItem('izziwire_api_key', apiKey);
+  }, [apiKey]);
+
   async function save() {
     if (!form) return;
     setSaveStatus(null);
