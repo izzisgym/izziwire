@@ -1,5 +1,4 @@
 import { getConfig } from '../config.js';
-import { getSetting } from '../settings/store.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
 export async function generateImage(params: {
