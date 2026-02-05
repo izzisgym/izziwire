@@ -20,6 +20,8 @@ const settingsSchema = z.object({
   WP_CATEGORY_POKEMON: z.number().int().nonnegative().optional(),
   WP_CATEGORY_ONEPIECE: z.number().int().nonnegative().optional(),
   WP_CATEGORY_MTG: z.number().int().nonnegative().optional(),
+  AUTO_GENERATE_LIMIT: z.number().int().positive().max(50).optional(),
+  AUTO_GENERATE_WINDOW_HOURS: z.number().int().positive().max(168).optional(),
 });
 
 function defaultsFromConfig() {
@@ -38,6 +40,8 @@ function defaultsFromConfig() {
     WP_CATEGORY_POKEMON: 0,
     WP_CATEGORY_ONEPIECE: 0,
     WP_CATEGORY_MTG: 0,
+    AUTO_GENERATE_LIMIT: 5,
+    AUTO_GENERATE_WINDOW_HOURS: 6,
   };
 }
 

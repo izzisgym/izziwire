@@ -16,7 +16,9 @@ export type SettingKey =
   | 'NEWS_TOPICS_MTG'
   | 'WP_CATEGORY_POKEMON'
   | 'WP_CATEGORY_ONEPIECE'
-  | 'WP_CATEGORY_MTG';
+  | 'WP_CATEGORY_MTG'
+  | 'AUTO_GENERATE_LIMIT'
+  | 'AUTO_GENERATE_WINDOW_HOURS';
 
 type SettingsMap = {
   SCRAPE_INTERVAL_HOURS: number;
@@ -32,6 +34,8 @@ type SettingsMap = {
   WP_CATEGORY_POKEMON: number;
   WP_CATEGORY_ONEPIECE: number;
   WP_CATEGORY_MTG: number;
+  AUTO_GENERATE_LIMIT: number;
+  AUTO_GENERATE_WINDOW_HOURS: number;
 };
 
 const cache: Partial<SettingsMap> = {};

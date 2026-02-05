@@ -19,6 +19,8 @@ interface SettingsPayload {
   WP_CATEGORY_POKEMON: number;
   WP_CATEGORY_ONEPIECE: number;
   WP_CATEGORY_MTG: number;
+  AUTO_GENERATE_LIMIT: number;
+  AUTO_GENERATE_WINDOW_HOURS: number;
 }
 
 export default function Settings() {
@@ -86,6 +88,32 @@ export default function Settings() {
     setSettings(data);
     setForm(data);
     setSaveStatus('Saved');
+  }
+
+  async function runNow() {
+    setSaveStatus(null);
+    const res = await fetch('/api/actions/run-now', {
+      method: 'POST',
+      headers: {
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+    });
+    if (!res.ok) {
+      const msg = await res.text();
+      setSaveStatus(`Run failed: ${msg || res.status}`);
+      return;
+    }
+    const data = (await res.json()) as {
+      scraped: number;
+      generated: number;
+      published: number;
+      errors?: string[];
+    };
+    setSaveStatus(
+      `Run complete: scraped ${data.scraped}, generated ${data.generated}, published ${data.published}${
+        data.errors?.length ? ` (errors: ${data.errors.length})` : ''
+      }`
+    );
   }
 
   return (
@@ -302,8 +330,37 @@ export default function Settings() {
                   style={{ width: '100%', padding: 8, marginTop: 4 }}
                 />
               </label>
+              <label>
+                Auto-generate window (hours)
+                <input
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={form.AUTO_GENERATE_WINDOW_HOURS}
+                  onChange={(e) =>
+                    setForm({ ...form, AUTO_GENERATE_WINDOW_HOURS: Number(e.target.value) || 1 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                Auto-generate limit (per run)
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={form.AUTO_GENERATE_LIMIT}
+                  onChange={(e) =>
+                    setForm({ ...form, AUTO_GENERATE_LIMIT: Number(e.target.value) || 1 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
               <button onClick={save} style={{ padding: '10px 14px' }}>
                 Save settings
+              </button>
+              <button onClick={runNow} style={{ padding: '10px 14px' }}>
+                Run now (search → generate → approve → draft)
               </button>
               {saveStatus && <div>{saveStatus}</div>}
               {settings && (
