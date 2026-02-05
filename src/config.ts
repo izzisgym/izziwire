@@ -9,6 +9,7 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),
   TAVILY_API_KEY: z.string().min(1).optional(),
+  IDEOGRAM_API_KEY: z.string().min(1).optional(),
 
   // Meta
   FACEBOOK_APP_ID: z.string().optional(),
