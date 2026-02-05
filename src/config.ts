@@ -17,6 +17,11 @@ const envSchema = z.object({
   FACEBOOK_PAGE_ID: z.string().optional(),
   INSTAGRAM_USER_ID: z.string().optional(),
 
+  // WordPress
+  WORDPRESS_URL: z.string().url().optional(),
+  WORDPRESS_USERNAME: z.string().optional(),
+  WORDPRESS_APP_PASSWORD: z.string().optional(),
+
   // Notifications
   SLACK_WEBHOOK_URL: z.string().url().optional().or(z.literal('')),
   DISCORD_WEBHOOK_URL: z.string().url().optional().or(z.literal('')),

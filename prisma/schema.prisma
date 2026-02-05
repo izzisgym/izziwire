@@ -127,6 +127,7 @@ enum Platform {
   facebook
   instagram
   both
+  wordpress
 }
 
 enum PostStatus {

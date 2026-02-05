@@ -16,6 +16,9 @@ interface SettingsPayload {
   NEWS_TOPICS_POKEMON: string[];
   NEWS_TOPICS_ONEPIECE: string[];
   NEWS_TOPICS_MTG: string[];
+  WP_CATEGORY_POKEMON: number;
+  WP_CATEGORY_ONEPIECE: number;
+  WP_CATEGORY_MTG: number;
 }
 
 export default function Settings() {
@@ -261,6 +264,42 @@ export default function Settings() {
                     setForm({ ...form, NEWS_TOPICS_MTG: textToTopics(e.target.value) })
                   }
                   style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
+              </label>
+              <label>
+                WordPress category ID: Pokemon
+                <input
+                  type="number"
+                  min={0}
+                  value={form.WP_CATEGORY_POKEMON}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_CATEGORY_POKEMON: Number(e.target.value) || 0 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                WordPress category ID: One Piece
+                <input
+                  type="number"
+                  min={0}
+                  value={form.WP_CATEGORY_ONEPIECE}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_CATEGORY_ONEPIECE: Number(e.target.value) || 0 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                WordPress category ID: MTG
+                <input
+                  type="number"
+                  min={0}
+                  value={form.WP_CATEGORY_MTG}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_CATEGORY_MTG: Number(e.target.value) || 0 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
                 />
               </label>
               <button onClick={save} style={{ padding: '10px 14px' }}>

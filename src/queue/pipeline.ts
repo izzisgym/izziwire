@@ -1,5 +1,6 @@
 import { getPrisma } from '../api/deps.js';
 import { generatePost } from '../ai/contentGenerator.js';
+import { generateWordPressPost } from '../ai/wordpressGenerator.js';
 import { generateImage } from '../ai/imageGenerator.js';
 import type { Platform } from '@prisma/client';
 
@@ -18,17 +19,33 @@ export async function runPipelineForArticle(params: {
     include: { source: true },
   });
 
-  const result = await generatePost({
-    topic: article.title,
-    postType: postType as 'news' | 'engagement' | 'card_spotlight' | 'poll',
-    platform: platform as string,
-    game: article.game,
-    facts: article.summary ?? undefined,
-  });
+  let result: { content: string; hashtags: string[]; tokensUsed?: number; model?: string };
+  let wpTitle: string | undefined;
+  let wpTags: string[] | undefined;
+
+  if (platform === 'wordpress') {
+    const wp = await generateWordPressPost({
+      topic: article.title,
+      summary: article.summary ?? undefined,
+      game: article.game,
+    });
+    result = { content: wp.body, hashtags: wp.tags, tokensUsed: wp.tokensUsed, model: undefined };
+    wpTitle = wp.title;
+    wpTags = wp.tags;
+  } else {
+    result = await generatePost({
+      topic: article.title,
+      postType: postType as 'news' | 'engagement' | 'card_spotlight' | 'poll',
+      platform: platform as string,
+      game: article.game,
+      facts: article.summary ?? undefined,
+    });
+  }
 
   let generatedImageUrl: string | null = null;
   let imageSource: string | null = null;
-  if (doImage) {
+  const shouldGenerateImage = platform === 'wordpress' ? true : doImage;
+  if (shouldGenerateImage) {
     try {
       generatedImageUrl = await generateImage({
         topic: article.title,
@@ -51,7 +68,10 @@ export async function runPipelineForArticle(params: {
       hashtags: result.hashtags,
       status: 'pending',
       aiModel: result.model ?? undefined,
-      generationMetadata: result.tokensUsed != null ? { tokensUsed: result.tokensUsed } : undefined,
+      generationMetadata:
+        result.tokensUsed != null || wpTitle
+          ? { tokensUsed: result.tokensUsed, wpTitle, wpTags }
+          : undefined,
     },
   });
 

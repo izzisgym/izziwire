@@ -17,6 +17,9 @@ const settingsSchema = z.object({
   NEWS_TOPICS_POKEMON: z.array(z.string().min(1)).optional(),
   NEWS_TOPICS_ONEPIECE: z.array(z.string().min(1)).optional(),
   NEWS_TOPICS_MTG: z.array(z.string().min(1)).optional(),
+  WP_CATEGORY_POKEMON: z.number().int().nonnegative().optional(),
+  WP_CATEGORY_ONEPIECE: z.number().int().nonnegative().optional(),
+  WP_CATEGORY_MTG: z.number().int().nonnegative().optional(),
 });
 
 function defaultsFromConfig() {
@@ -32,6 +35,9 @@ function defaultsFromConfig() {
     NEWS_TOPICS_POKEMON: [],
     NEWS_TOPICS_ONEPIECE: [],
     NEWS_TOPICS_MTG: [],
+    WP_CATEGORY_POKEMON: 0,
+    WP_CATEGORY_ONEPIECE: 0,
+    WP_CATEGORY_MTG: 0,
   };
 }
 

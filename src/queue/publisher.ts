@@ -4,6 +4,7 @@ import { publishPhoto } from '../social/instagram.js';
 import { sendSlackNotification } from '../notifications/slack.js';
 import { retry } from '../lib/retry.js';
 import { getSetting } from '../settings/store.js';
+import { publishWordPressDraft } from '../publish/wordpress.js';
 
 const prisma = getPrisma();
 
@@ -33,6 +34,42 @@ export async function runPublishCycle(): Promise<{ published: number; errors: st
       let anySuccess = false;
       const errorNotes: string[] = [];
       try {
+        if (post.platform === 'wordpress') {
+          const already = await prisma.publishedPost.findFirst({
+            where: { pendingPostId: post.id, platform: 'wordpress' },
+          });
+          if (!already) {
+            const meta = (post.generationMetadata ?? {}) as { wpTitle?: string; wpTags?: string[] };
+            const title = meta.wpTitle ?? post.content.slice(0, 80);
+            const tags = meta.wpTags ?? post.hashtags ?? [];
+            const game = post.article?.game;
+            const categoryId =
+              game === 'pokemon'
+                ? await getSetting('WP_CATEGORY_POKEMON', 0)
+                : game === 'onepiece'
+                  ? await getSetting('WP_CATEGORY_ONEPIECE', 0)
+                  : await getSetting('WP_CATEGORY_MTG', 0);
+            const result = await publishWordPressDraft({
+              title,
+              body: post.content,
+              tags,
+              categoryId,
+              featuredImageUrl: post.generatedImageUrl ?? null,
+            });
+            await prisma.publishedPost.create({
+              data: {
+                pendingPostId: post.id,
+                platform: 'wordpress',
+                platformPostId: String(result.id),
+                postUrl: result.link ?? undefined,
+              },
+            });
+            published++;
+            anySuccess = true;
+          } else {
+            anySuccess = true;
+          }
+        }
         if (post.platform === 'facebook' || post.platform === 'both') {
           const already = await prisma.publishedPost.findFirst({
             where: { pendingPostId: post.id, platform: 'facebook' },

@@ -12,5 +12,6 @@ export function pickOpening(): string {
 }
 
 export function pickCharLimit(platform: string): number {
+  if (platform === 'wordpress') return 2000;
   return platform === 'facebook' ? 300 : 150;
 }

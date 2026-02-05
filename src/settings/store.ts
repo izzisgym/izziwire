@@ -13,7 +13,10 @@ export type SettingKey =
   | 'NEWS_SEARCH_ENABLED'
   | 'NEWS_TOPICS_POKEMON'
   | 'NEWS_TOPICS_ONEPIECE'
-  | 'NEWS_TOPICS_MTG';
+  | 'NEWS_TOPICS_MTG'
+  | 'WP_CATEGORY_POKEMON'
+  | 'WP_CATEGORY_ONEPIECE'
+  | 'WP_CATEGORY_MTG';
 
 type SettingsMap = {
   SCRAPE_INTERVAL_HOURS: number;
@@ -26,6 +29,9 @@ type SettingsMap = {
   NEWS_TOPICS_POKEMON: string[];
   NEWS_TOPICS_ONEPIECE: string[];
   NEWS_TOPICS_MTG: string[];
+  WP_CATEGORY_POKEMON: number;
+  WP_CATEGORY_ONEPIECE: number;
+  WP_CATEGORY_MTG: number;
 };
 
 const cache: Partial<SettingsMap> = {};
