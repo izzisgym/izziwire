@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import ApprovalQueue from './pages/ApprovalQueue';
 import PublishedPosts from './pages/PublishedPosts';
-import NewsSources from './pages/NewsSources';
 import Settings from './pages/Settings';
 
 function App() {
@@ -39,14 +38,6 @@ function App() {
               </svg>
               Published
             </NavLink>
-            <NavLink to="/sources" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-              </svg>
-              News Sources
-            </NavLink>
             <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3" />
@@ -60,7 +51,6 @@ function App() {
           <Routes>
             <Route path="/" element={<ApprovalQueue />} />
             <Route path="/published" element={<PublishedPosts />} />
-            <Route path="/sources" element={<NewsSources />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
