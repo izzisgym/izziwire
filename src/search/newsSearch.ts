@@ -120,9 +120,9 @@ export async function runSearchCycle(): Promise<{ topics: number; created: numbe
   const topicsMtg = await getSetting('NEWS_TOPICS_MTG', []);
 
   const topics: Array<{ topic: string; game: Game }> = [
-    ...topicsPokemon.map((t) => ({ topic: t, game: 'pokemon' })),
-    ...topicsOnepiece.map((t) => ({ topic: t, game: 'onepiece' })),
-    ...topicsMtg.map((t) => ({ topic: t, game: 'mtg' })),
+    ...topicsPokemon.map((t) => ({ topic: t, game: 'pokemon' as const })),
+    ...topicsOnepiece.map((t) => ({ topic: t, game: 'onepiece' as const })),
+    ...topicsMtg.map((t) => ({ topic: t, game: 'mtg' as const })),
   ];
 
   let created = 0;
