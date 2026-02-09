@@ -41,7 +41,7 @@ const envSchema = z.object({
   SENTRY_DSN: z.string().url().optional().or(z.literal('')),
 
   // App
-  DEFAULT_AI_MODEL: z.string().default('claude-3-5-sonnet-20241022'),
+  DEFAULT_AI_MODEL: z.string().default('claude-opus-4-6'),
   IMAGE_MODEL: z.string().default('dall-e-3'),
   DEBUG: z.coerce.boolean().default(false),
   API_KEY: z.string().min(1),
