@@ -109,10 +109,9 @@ export default function Settings() {
       published: number;
       errors?: string[];
     };
+    const errorDetail = data.errors?.length ? `\nErrors:\n${data.errors.join('\n')}` : '';
     setSaveStatus(
-      `Run complete: scraped ${data.scraped}, generated ${data.generated}, published ${data.published}${
-        data.errors?.length ? ` (errors: ${data.errors.length})` : ''
-      }`
+      `Run complete: scraped ${data.scraped}, generated ${data.generated}, published ${data.published}${errorDetail}`
     );
   }
 
