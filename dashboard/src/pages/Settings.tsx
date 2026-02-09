@@ -42,8 +42,19 @@ export default function Settings() {
   const textToTopics = (value: string) =>
     value
       .split('\n')
-      .map((t) => t.trim())
-      .filter(Boolean);
+      .filter((line) => line.trim() !== '');
+
+  const [pokemonText, setPokemonText] = useState('');
+  const [onepieceText, setOnepieceText] = useState('');
+  const [mtgText, setMtgText] = useState('');
+
+  useEffect(() => {
+    if (form) {
+      setPokemonText(topicsToText(form.NEWS_TOPICS_POKEMON));
+      setOnepieceText(topicsToText(form.NEWS_TOPICS_ONEPIECE));
+      setMtgText(topicsToText(form.NEWS_TOPICS_MTG));
+    }
+  }, [settings]);
 
   useEffect(() => {
     fetch('/api/metrics')
@@ -78,13 +89,19 @@ export default function Settings() {
   async function save() {
     if (!form) return;
     setSaveStatus(null);
+    const payload = {
+      ...form,
+      NEWS_TOPICS_POKEMON: textToTopics(pokemonText),
+      NEWS_TOPICS_ONEPIECE: textToTopics(onepieceText),
+      NEWS_TOPICS_MTG: textToTopics(mtgText),
+    };
     const res = await fetch('/api/settings', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         ...(apiKey ? { 'x-api-key': apiKey } : {}),
       },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const msg = await res.text();
@@ -278,10 +295,8 @@ export default function Settings() {
                 Pokemon topics (one per line)
                 <textarea
                   rows={4}
-                  value={topicsToText(form.NEWS_TOPICS_POKEMON)}
-                  onChange={(e) =>
-                    setForm({ ...form, NEWS_TOPICS_POKEMON: textToTopics(e.target.value) })
-                  }
+                  value={pokemonText}
+                  onChange={(e) => setPokemonText(e.target.value)}
                   style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
                 />
               </label>
@@ -289,10 +304,8 @@ export default function Settings() {
                 One Piece topics (one per line)
                 <textarea
                   rows={4}
-                  value={topicsToText(form.NEWS_TOPICS_ONEPIECE)}
-                  onChange={(e) =>
-                    setForm({ ...form, NEWS_TOPICS_ONEPIECE: textToTopics(e.target.value) })
-                  }
+                  value={onepieceText}
+                  onChange={(e) => setOnepieceText(e.target.value)}
                   style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
                 />
               </label>
@@ -300,10 +313,8 @@ export default function Settings() {
                 MTG topics (one per line)
                 <textarea
                   rows={4}
-                  value={topicsToText(form.NEWS_TOPICS_MTG)}
-                  onChange={(e) =>
-                    setForm({ ...form, NEWS_TOPICS_MTG: textToTopics(e.target.value) })
-                  }
+                  value={mtgText}
+                  onChange={(e) => setMtgText(e.target.value)}
                   style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
                 />
               </label>
