@@ -21,6 +21,12 @@ interface SettingsPayload {
   WP_CATEGORY_MTG: number;
   AUTO_GENERATE_LIMIT: number;
   AUTO_GENERATE_WINDOW_HOURS: number;
+  WP_WRITING_INSTRUCTIONS: string;
+  WP_MIN_WORDS: number;
+  WP_MAX_WORDS: number;
+  SEARCH_INSTRUCTIONS: string;
+  SEARCH_MAX_RESULTS: number;
+  SEARCH_RECENCY_DAYS: number;
 }
 
 export default function Settings() {
@@ -325,6 +331,80 @@ export default function Settings() {
                   value={form.WP_CATEGORY_MTG}
                   onChange={(e) =>
                     setForm({ ...form, WP_CATEGORY_MTG: Number(e.target.value) || 0 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                Search instructions (what counts as good news)
+                <textarea
+                  rows={6}
+                  value={form.SEARCH_INSTRUCTIONS}
+                  onChange={(e) =>
+                    setForm({ ...form, SEARCH_INSTRUCTIONS: e.target.value })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
+              </label>
+              <label>
+                Max search results per topic
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={form.SEARCH_MAX_RESULTS}
+                  onChange={(e) =>
+                    setForm({ ...form, SEARCH_MAX_RESULTS: Number(e.target.value) || 5 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                Search recency (days)
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={form.SEARCH_RECENCY_DAYS}
+                  onChange={(e) =>
+                    setForm({ ...form, SEARCH_RECENCY_DAYS: Number(e.target.value) || 7 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                Writing instructions (tone, style, structure)
+                <textarea
+                  rows={8}
+                  value={form.WP_WRITING_INSTRUCTIONS}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_WRITING_INSTRUCTIONS: e.target.value })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4, fontFamily: 'monospace' }}
+                />
+              </label>
+              <label>
+                Min words per post
+                <input
+                  type="number"
+                  min={100}
+                  max={5000}
+                  value={form.WP_MIN_WORDS}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_MIN_WORDS: Number(e.target.value) || 100 })
+                  }
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                />
+              </label>
+              <label>
+                Max words per post
+                <input
+                  type="number"
+                  min={100}
+                  max={5000}
+                  value={form.WP_MAX_WORDS}
+                  onChange={(e) =>
+                    setForm({ ...form, WP_MAX_WORDS: Number(e.target.value) || 500 })
                   }
                   style={{ width: '100%', padding: 8, marginTop: 4 }}
                 />

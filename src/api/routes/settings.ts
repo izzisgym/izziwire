@@ -22,6 +22,12 @@ const settingsSchema = z.object({
   WP_CATEGORY_MTG: z.number().int().nonnegative().optional(),
   AUTO_GENERATE_LIMIT: z.number().int().positive().max(50).optional(),
   AUTO_GENERATE_WINDOW_HOURS: z.number().int().positive().max(168).optional(),
+  WP_WRITING_INSTRUCTIONS: z.string().optional(),
+  WP_MIN_WORDS: z.number().int().nonnegative().optional(),
+  WP_MAX_WORDS: z.number().int().nonnegative().optional(),
+  SEARCH_INSTRUCTIONS: z.string().optional(),
+  SEARCH_MAX_RESULTS: z.number().int().positive().max(20).optional(),
+  SEARCH_RECENCY_DAYS: z.number().int().positive().max(30).optional(),
 });
 
 function defaultsFromConfig() {
@@ -42,6 +48,14 @@ function defaultsFromConfig() {
     WP_CATEGORY_MTG: 0,
     AUTO_GENERATE_LIMIT: 5,
     AUTO_GENERATE_WINDOW_HOURS: 6,
+    WP_WRITING_INSTRUCTIONS:
+      'Write engaging, well-structured blog posts for a TCG community audience. Use a conversational but knowledgeable tone. Structure with an intro paragraph, 3-4 body sections with subheadings (use HTML <h2> tags), and a conclusion. Include strategic insights and community relevance. Format the body as HTML with <h2> for sections and <p> for paragraphs.',
+    WP_MIN_WORDS: 600,
+    WP_MAX_WORDS: 1200,
+    SEARCH_INSTRUCTIONS:
+      'Only select articles that contain meaningful, actionable news: new set announcements, card reveals, ban list updates, tournament results, meta shifts, or official rule changes. Skip generic listicles, opinion pieces with no new info, and articles older than a week.',
+    SEARCH_MAX_RESULTS: 10,
+    SEARCH_RECENCY_DAYS: 7,
   };
 }
 

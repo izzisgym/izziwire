@@ -18,7 +18,13 @@ export type SettingKey =
   | 'WP_CATEGORY_ONEPIECE'
   | 'WP_CATEGORY_MTG'
   | 'AUTO_GENERATE_LIMIT'
-  | 'AUTO_GENERATE_WINDOW_HOURS';
+  | 'AUTO_GENERATE_WINDOW_HOURS'
+  | 'WP_WRITING_INSTRUCTIONS'
+  | 'WP_MIN_WORDS'
+  | 'WP_MAX_WORDS'
+  | 'SEARCH_INSTRUCTIONS'
+  | 'SEARCH_MAX_RESULTS'
+  | 'SEARCH_RECENCY_DAYS';
 
 type SettingsMap = {
   SCRAPE_INTERVAL_HOURS: number;
@@ -36,6 +42,12 @@ type SettingsMap = {
   WP_CATEGORY_MTG: number;
   AUTO_GENERATE_LIMIT: number;
   AUTO_GENERATE_WINDOW_HOURS: number;
+  WP_WRITING_INSTRUCTIONS: string;
+  WP_MIN_WORDS: number;
+  WP_MAX_WORDS: number;
+  SEARCH_INSTRUCTIONS: string;
+  SEARCH_MAX_RESULTS: number;
+  SEARCH_RECENCY_DAYS: number;
 };
 
 const cache: Partial<SettingsMap> = {};
