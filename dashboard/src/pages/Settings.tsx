@@ -36,6 +36,7 @@ export default function Settings() {
   const [form, setForm] = useState<SettingsPayload | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
 
   const topicsToText = (topics: string[]) => topics.join('\n');
   const textToTopics = (value: string) =>
@@ -98,27 +99,34 @@ export default function Settings() {
 
   async function runNow() {
     setSaveStatus(null);
-    const res = await fetch('/api/actions/run-now', {
-      method: 'POST',
-      headers: {
-        ...(apiKey ? { 'x-api-key': apiKey } : {}),
-      },
-    });
-    if (!res.ok) {
-      const msg = await res.text();
-      setSaveStatus(`Run failed: ${msg || res.status}`);
-      return;
+    setRunning(true);
+    try {
+      const res = await fetch('/api/actions/run-now', {
+        method: 'POST',
+        headers: {
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        setSaveStatus(`Run failed: ${msg || res.status}`);
+        return;
+      }
+      const data = (await res.json()) as {
+        scraped: number;
+        generated: number;
+        published: number;
+        errors?: string[];
+      };
+      const errorDetail = data.errors?.length ? `\nErrors:\n${data.errors.join('\n')}` : '';
+      setSaveStatus(
+        `Run complete: scraped ${data.scraped}, generated ${data.generated}, published ${data.published}${errorDetail}`
+      );
+    } catch (e) {
+      setSaveStatus(`Run failed: ${e instanceof Error ? e.message : 'Network error'}`);
+    } finally {
+      setRunning(false);
     }
-    const data = (await res.json()) as {
-      scraped: number;
-      generated: number;
-      published: number;
-      errors?: string[];
-    };
-    const errorDetail = data.errors?.length ? `\nErrors:\n${data.errors.join('\n')}` : '';
-    setSaveStatus(
-      `Run complete: scraped ${data.scraped}, generated ${data.generated}, published ${data.published}${errorDetail}`
-    );
   }
 
   return (
@@ -438,8 +446,8 @@ export default function Settings() {
               <button onClick={save} style={{ padding: '10px 14px' }}>
                 Save settings
               </button>
-              <button onClick={runNow} style={{ padding: '10px 14px' }}>
-                Run now (search → generate → approve → draft)
+              <button onClick={runNow} disabled={running} style={{ padding: '10px 14px', opacity: running ? 0.6 : 1 }}>
+                {running ? 'Running... (this may take a minute)' : 'Run now (search → generate → approve → draft)'}
               </button>
               {saveStatus && <div>{saveStatus}</div>}
               {settings && (
