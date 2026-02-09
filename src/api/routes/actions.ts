@@ -14,12 +14,10 @@ router.post('/run-now', requireApiKey, async (_req, res) => {
   try {
     const { scraped, errors: scrapeErrors } = await runScrapeCycle();
 
-    const windowHours = await getSetting('AUTO_GENERATE_WINDOW_HOURS', 6);
     const limit = await getSetting('AUTO_GENERATE_LIMIT', 5);
-    const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
     const articles = await prisma.article.findMany({
-      where: { isProcessed: false, scrapedAt: { gte: since } },
+      where: { isProcessed: false },
       orderBy: { scrapedAt: 'desc' },
       take: limit,
     });
