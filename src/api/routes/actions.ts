@@ -69,4 +69,16 @@ router.post('/run-now', requireApiKey, async (_req, res) => {
   }
 });
 
+router.post('/reset-articles', requireApiKey, async (_req, res) => {
+  try {
+    const result = await prisma.article.updateMany({
+      where: { isProcessed: true },
+      data: { isProcessed: false },
+    });
+    res.json({ ok: true, reset: result.count });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+  }
+});
+
 export default router;

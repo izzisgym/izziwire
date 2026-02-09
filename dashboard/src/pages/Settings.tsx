@@ -462,6 +462,23 @@ export default function Settings() {
               <button onClick={runNow} disabled={running} style={{ padding: '10px 14px', opacity: running ? 0.6 : 1 }}>
                 {running ? 'Running... (this may take a minute)' : 'Run now (search → generate → approve → draft)'}
               </button>
+              <button
+                onClick={async () => {
+                  const r = await fetch('/api/actions/reset-articles', {
+                    method: 'POST',
+                    headers: { ...(apiKey ? { 'x-api-key': apiKey } : {}) },
+                  });
+                  if (r.ok) {
+                    const d = (await r.json()) as { reset: number };
+                    setSaveStatus(`Reset ${d.reset} articles to unprocessed`);
+                  } else {
+                    setSaveStatus('Reset failed');
+                  }
+                }}
+                style={{ padding: '10px 14px' }}
+              >
+                Reset articles (mark all as unprocessed)
+              </button>
               {saveStatus && <div>{saveStatus}</div>}
               {settings && (
                 <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
