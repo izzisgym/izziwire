@@ -7,6 +7,13 @@ export interface PendingPost {
   postType: string;
   hashtags: string[];
   generatedImageUrl?: string | null;
+  generationMetadata?: {
+    wpTitle?: string;
+    wpTags?: string[];
+    wpExcerpt?: string;
+    postTypeSlug?: string;
+    game?: string;
+  } | null;
   article?: { title: string; url: string; game: string } | null;
 }
 
@@ -15,18 +22,29 @@ interface PostCardProps {
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
   onSchedule: (id: string, scheduledFor: string) => void;
+  onPublish: (id: string) => void;
 }
 
-export default function PostCard({ post, onApprove, onReject, onSchedule }: PostCardProps) {
+export default function PostCard({ post, onApprove, onReject, onSchedule, onPublish }: PostCardProps) {
   const [rejectReason, setRejectReason] = useState('');
   const [scheduleDate, setScheduleDate] = useState(() => {
     const d = new Date();
     d.setHours(d.getHours() + 2, 0, 0, 0);
     return d.toISOString().slice(0, 16);
   });
+  const [expanded, setExpanded] = useState(false);
 
   const platformClass = post.platform.toLowerCase();
-  const gameClass = post.article?.game?.toLowerCase() || '';
+  const gameClass = post.generationMetadata?.game ?? post.article?.game?.toLowerCase() ?? '';
+  const wpTitle = post.generationMetadata?.wpTitle;
+  const wpExcerpt = post.generationMetadata?.wpExcerpt;
+  const isWordPress = post.platform === 'wordpress';
+  const isHtml = post.content.includes('<') && post.content.includes('>');
+
+  // Truncate content for preview
+  const previewLength = 500;
+  const needsTruncation = post.content.length > previewLength;
+  const displayContent = expanded ? post.content : post.content.slice(0, previewLength);
 
   return (
     <div className="card">
@@ -35,14 +53,40 @@ export default function PostCard({ post, onApprove, onReject, onSchedule }: Post
           <span className={`platform-badge ${platformClass}`}>
             {post.platform}
           </span>
-          {post.article?.game && (
+          {gameClass && (
             <span className={`game-badge ${gameClass}`}>
-              {post.article.game}
+              {gameClass}
             </span>
           )}
           <span className="post-type-badge">{post.postType}</span>
         </div>
       </div>
+
+      {/* WordPress title */}
+      {wpTitle && (
+        <h3 style={{
+          fontSize: 20,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          marginBottom: 8,
+          lineHeight: 1.3,
+        }}>
+          {wpTitle}
+        </h3>
+      )}
+
+      {/* Excerpt */}
+      {wpExcerpt && (
+        <p style={{
+          fontSize: 14,
+          color: 'var(--text-secondary)',
+          fontStyle: 'italic',
+          marginBottom: 12,
+          lineHeight: 1.5,
+        }}>
+          {wpExcerpt}
+        </p>
+      )}
 
       {post.generatedImageUrl && (
         <img
@@ -52,7 +96,49 @@ export default function PostCard({ post, onApprove, onReject, onSchedule }: Post
         />
       )}
 
-      <div className="card-content">{post.content}</div>
+      {/* Content - render HTML for WordPress posts, plain text otherwise */}
+      {isHtml ? (
+        <div
+          className="card-content"
+          style={{
+            whiteSpace: 'normal',
+            maxHeight: expanded ? 'none' : 300,
+            overflow: expanded ? 'visible' : 'hidden',
+            position: 'relative',
+          }}
+          dangerouslySetInnerHTML={{ __html: displayContent }}
+        />
+      ) : (
+        <div
+          className="card-content"
+          style={{
+            maxHeight: expanded ? 'none' : 300,
+            overflow: expanded ? 'visible' : 'hidden',
+          }}
+        >
+          {displayContent}
+          {!expanded && needsTruncation && '...'}
+        </div>
+      )}
+
+      {(needsTruncation || (isHtml && post.content.length > previewLength)) && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--accent-primary)',
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 600,
+            padding: '4px 0',
+            marginBottom: 12,
+          }}
+        >
+          {expanded ? 'Show less' : 'Show full content'}
+        </button>
+      )}
 
       {post.hashtags?.length > 0 && (
         <div className="card-hashtags">
@@ -69,12 +155,22 @@ export default function PostCard({ post, onApprove, onReject, onSchedule }: Post
       )}
 
       <div className="card-actions">
-        <button type="button" className="btn btn-success" onClick={() => onApprove(post.id)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
-          Approve Now
-        </button>
+        {/* Approve + Publish to WordPress */}
+        {isWordPress ? (
+          <button type="button" className="btn btn-success" onClick={() => onPublish(post.id)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            Approve &amp; Publish to WordPress
+          </button>
+        ) : (
+          <button type="button" className="btn btn-success" onClick={() => onApprove(post.id)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            Approve
+          </button>
+        )}
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input

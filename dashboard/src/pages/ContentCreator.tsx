@@ -13,11 +13,12 @@ interface PostType {
 
 interface GenerateResult {
   ok: boolean;
+  pendingPostId?: string;
   title?: string;
   excerpt?: string;
   tags?: string[];
   hasImage?: boolean;
-  wordpress?: { id: number; link?: string } | null;
+  status?: string;
   error?: string;
 }
 
@@ -29,7 +30,6 @@ export default function ContentCreator() {
   const [game, setGame] = useState<'pokemon' | 'onepiece' | 'mtg'>('pokemon');
   const [topic, setTopic] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
-  const [publishToWP, setPublishToWP] = useState(true);
 
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerateResult | null>(null);
@@ -71,7 +71,6 @@ export default function ContentCreator() {
           topic: topic.trim(),
           game,
           additionalContext: additionalContext.trim() || undefined,
-          publishToWordPress: publishToWP,
         }),
       });
 
@@ -261,17 +260,9 @@ export default function ContentCreator() {
                   }}
                 />
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={publishToWP}
-                  onChange={(e) => setPublishToWP(e.target.checked)}
-                  style={{ width: 18, height: 18 }}
-                />
-                <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-                  Publish as WordPress draft
-                </span>
-              </label>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                Content will be generated and sent to the Approval Queue for your review before publishing.
+              </div>
             </div>
           </div>
 
@@ -371,26 +362,30 @@ export default function ContentCreator() {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-muted)' }}>
+                <div style={{
+                  display: 'flex',
+                  gap: 20,
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                  alignItems: 'center',
+                }}>
                   <span>{result.hasImage ? 'Featured image generated' : 'No featured image'}</span>
-                  {result.wordpress && (
-                    <span>
-                      WordPress draft #{result.wordpress.id}
-                      {result.wordpress.link && (
-                        <>
-                          {' — '}
-                          <a
-                            href={result.wordpress.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: 'var(--accent-primary)' }}
-                          >
-                            View post
-                          </a>
-                        </>
-                      )}
-                    </span>
-                  )}
+                  <span style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    color: 'var(--accent-warning)',
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontWeight: 600,
+                    fontSize: 12,
+                  }}>
+                    Pending Review
+                  </span>
+                  <a
+                    href="/queue"
+                    style={{ color: 'var(--accent-primary)', fontWeight: 500 }}
+                  >
+                    Go to Approval Queue
+                  </a>
                 </div>
               </div>
             </div>

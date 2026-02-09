@@ -2,6 +2,9 @@ import { Router } from 'express';
 import * as workflow from '../../queue/workflow.js';
 import { z } from 'zod';
 import { requireApiKey } from '../auth.js';
+import { getPrisma } from '../deps.js';
+import { publishWordPressDraft } from '../../publish/wordpress.js';
+import { getSetting } from '../../settings/store.js';
 
 const router = Router();
 
@@ -99,6 +102,71 @@ router.post('/:id/schedule', requireApiKey, async (req, res) => {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     const code = msg === 'Post not found' ? 404 : msg.startsWith('Invalid transition') ? 400 : 500;
     return res.status(code).json({ error: msg });
+  }
+});
+
+// Publish an approved post to WordPress
+router.post('/:id/publish', requireApiKey, async (req, res) => {
+  try {
+    const postId = getParamId(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'Missing post id' });
+
+    const prisma = getPrisma();
+    const post = await prisma.pendingPost.findUnique({
+      where: { id: postId },
+      include: { article: true },
+    });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.status !== 'approved' && post.status !== 'pending') {
+      return res.status(400).json({ error: `Cannot publish post with status "${post.status}"` });
+    }
+
+    const meta = (post.generationMetadata ?? {}) as {
+      wpTitle?: string;
+      wpTags?: string[];
+      game?: string;
+    };
+    const title = meta.wpTitle ?? post.content.slice(0, 80);
+    const tags = meta.wpTags ?? post.hashtags ?? [];
+    const game = meta.game ?? post.article?.game;
+
+    const categoryId =
+      game === 'pokemon'
+        ? await getSetting('WP_CATEGORY_POKEMON', 0)
+        : game === 'onepiece'
+          ? await getSetting('WP_CATEGORY_ONEPIECE', 0)
+          : await getSetting('WP_CATEGORY_MTG', 0);
+
+    const wpResult = await publishWordPressDraft({
+      title,
+      body: post.content,
+      tags,
+      categoryId,
+      featuredImageUrl: post.generatedImageUrl ?? null,
+    });
+
+    await prisma.pendingPost.update({
+      where: { id: postId },
+      data: { status: 'published' },
+    });
+
+    await prisma.publishedPost.create({
+      data: {
+        pendingPostId: postId,
+        platform: 'wordpress',
+        platformPostId: String(wpResult.id),
+        postUrl: wpResult.link ?? undefined,
+      },
+    });
+
+    return res.json({
+      ok: true,
+      wpPostId: wpResult.id,
+      link: wpResult.link,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return res.status(500).json({ error: msg });
   }
 });
 

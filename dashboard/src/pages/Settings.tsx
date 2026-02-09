@@ -134,12 +134,12 @@ export default function Settings() {
         unprocessedArticles?: number;
         articlesFound?: number;
         generated: number;
-        published: number;
+        pendingReview?: number;
         errors?: string[];
       };
       const errorDetail = data.errors?.length ? `\nErrors:\n${data.errors.join('\n')}` : '';
       setSaveStatus(
-        `Run complete: scraped ${data.scraped}, unprocessed articles: ${data.unprocessedArticles ?? '?'}, picked: ${data.articlesFound ?? '?'}, generated ${data.generated}, published ${data.published}${errorDetail}`
+        `Run complete: scraped ${data.scraped}, unprocessed: ${data.unprocessedArticles ?? '?'}, picked: ${data.articlesFound ?? '?'}, generated ${data.generated} → sent to Approval Queue${errorDetail}`
       );
     } catch (e) {
       setSaveStatus(`Run failed: ${e instanceof Error ? e.message : 'Network error'}`);
@@ -460,7 +460,7 @@ export default function Settings() {
                 Save settings
               </button>
               <button onClick={runNow} disabled={running} style={{ padding: '10px 14px', opacity: running ? 0.6 : 1 }}>
-                {running ? 'Running... (this may take a minute)' : 'Run now (search → generate → approve → draft)'}
+                {running ? 'Running... (this may take a minute)' : 'Run now (search → generate → send to review)'}
               </button>
               <button
                 onClick={async () => {

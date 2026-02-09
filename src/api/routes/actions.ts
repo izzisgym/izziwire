@@ -3,8 +3,6 @@ import { requireApiKey } from '../auth.js';
 import { runScrapeCycle } from '../../scraper/scheduler.js';
 import { getPrisma } from '../deps.js';
 import { runPipelineForArticle } from '../../queue/pipeline.js';
-import * as workflow from '../../queue/workflow.js';
-import { runPublishCycle } from '../../queue/publisher.js';
 import { getSetting } from '../../settings/store.js';
 
 const router = Router();
@@ -43,26 +41,15 @@ router.post('/run-now', requireApiKey, async (_req, res) => {
       }
     }
 
-    const approveErrors: string[] = [];
-    for (const id of pendingIds) {
-      try {
-        await workflow.approvePost(id, {});
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        approveErrors.push(`Post ${id}: ${msg}`);
-      }
-    }
-
-    const { published, errors: publishErrors } = await runPublishCycle();
-
+    // Posts are left as 'pending' for manual review in the Approval Queue
     res.json({
       ok: true,
       scraped,
       unprocessedArticles: totalUnprocessed,
       articlesFound: articles.length,
       generated: pendingIds.length,
-      published,
-      errors: [...scrapeErrors, ...generateErrors, ...approveErrors, ...publishErrors],
+      pendingReview: pendingIds.length,
+      errors: [...scrapeErrors, ...generateErrors],
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });

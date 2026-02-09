@@ -8,6 +8,18 @@ export default function ApprovalQueue() {
   const [posts, setPosts] = useState<PendingPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+
+  const apiKey = localStorage.getItem('izziwire_api_key') || '';
+
+  const headers = useCallback(
+    (extra?: Record<string, string>) => ({
+      'Content-Type': 'application/json',
+      ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      ...extra,
+    }),
+    [apiKey],
+  );
 
   const fetchPending = useCallback(async () => {
     setLoading(true);
@@ -30,44 +42,69 @@ export default function ApprovalQueue() {
   }, [fetchPending]);
 
   const handleApprove = async (id: string) => {
+    setActionStatus(null);
     try {
       const res = await fetch(`${API_BASE}/posts/${id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers(),
         body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
+      setActionStatus('Post approved');
       await fetchPending();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Approve failed');
+      setActionStatus(`Approve failed: ${e instanceof Error ? e.message : 'error'}`);
     }
   };
 
   const handleReject = async (id: string, reason: string) => {
+    setActionStatus(null);
     try {
       const res = await fetch(`${API_BASE}/posts/${id}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers(),
         body: JSON.stringify({ reason }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
+      setActionStatus('Post rejected');
       await fetchPending();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Reject failed');
+      setActionStatus(`Reject failed: ${e instanceof Error ? e.message : 'error'}`);
     }
   };
 
   const handleSchedule = async (id: string, scheduledFor: string) => {
+    setActionStatus(null);
     try {
       const res = await fetch(`${API_BASE}/posts/${id}/schedule`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers(),
         body: JSON.stringify({ scheduledFor: new Date(scheduledFor).toISOString() }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
+      setActionStatus('Post scheduled');
       await fetchPending();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Schedule failed');
+      setActionStatus(`Schedule failed: ${e instanceof Error ? e.message : 'error'}`);
+    }
+  };
+
+  const handlePublish = async (id: string) => {
+    setActionStatus(null);
+    try {
+      setActionStatus('Publishing to WordPress...');
+      const res = await fetch(`${API_BASE}/posts/${id}/publish`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.statusText);
+      const link = data.link ? ` — ${data.link}` : '';
+      setActionStatus(`Published to WordPress as draft #${data.wpPostId}${link}`);
+      await fetchPending();
+    } catch (e) {
+      setActionStatus(`Publish failed: ${e instanceof Error ? e.message : 'error'}`);
     }
   };
 
@@ -80,6 +117,26 @@ export default function ApprovalQueue() {
           {posts.length} post{posts.length !== 1 ? 's' : ''} awaiting your review
         </p>
       </div>
+
+      {actionStatus && (
+        <div
+          style={{
+            padding: '12px 16px',
+            marginBottom: 16,
+            borderRadius: 'var(--radius-md)',
+            fontSize: 14,
+            background: actionStatus.toLowerCase().includes('fail')
+              ? 'rgba(239, 68, 68, 0.1)'
+              : 'rgba(34, 197, 94, 0.1)',
+            color: actionStatus.toLowerCase().includes('fail')
+              ? 'var(--accent-danger)'
+              : 'var(--accent-success)',
+            border: `1px solid ${actionStatus.toLowerCase().includes('fail') ? 'var(--accent-danger)' : 'var(--accent-success)'}`,
+          }}
+        >
+          {actionStatus}
+        </div>
+      )}
 
       {loading && (
         <div className="loading">
@@ -116,6 +173,7 @@ export default function ApprovalQueue() {
           onApprove={handleApprove}
           onReject={handleReject}
           onSchedule={handleSchedule}
+          onPublish={handlePublish}
         />
       ))}
     </>

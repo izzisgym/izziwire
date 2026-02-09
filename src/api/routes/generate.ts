@@ -4,9 +4,7 @@ import { Prisma } from '@prisma/client';
 import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
 import { getConfig } from '../../config.js';
-import { getSetting } from '../../settings/store.js';
 import { generateImage } from '../../ai/imageGenerator.js';
-import { publishWordPressDraft } from '../../publish/wordpress.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type { PostTypeConfig } from './postTypes.js';
 
@@ -18,7 +16,6 @@ const generateSchema = z.object({
   topic: z.string().min(1),
   game: z.enum(['pokemon', 'onepiece', 'mtg']),
   additionalContext: z.string().optional(),
-  publishToWordPress: z.boolean().default(true),
 });
 
 async function getPostTypes(): Promise<PostTypeConfig[]> {
@@ -34,7 +31,7 @@ router.post('/', requireApiKey, async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.message });
     }
-    const { postTypeSlug, topic, game, additionalContext, publishToWordPress } = parsed.data;
+    const { postTypeSlug, topic, game, additionalContext } = parsed.data;
 
     const postTypes = await getPostTypes();
     const postType = postTypes.find((t) => t.slug === postTypeSlug);
@@ -115,26 +112,8 @@ Respond as JSON:
       }
     }
 
-    const categoryId =
-      game === 'pokemon'
-        ? await getSetting('WP_CATEGORY_POKEMON', 0)
-        : game === 'onepiece'
-          ? await getSetting('WP_CATEGORY_ONEPIECE', 0)
-          : await getSetting('WP_CATEGORY_MTG', 0);
-
-    let wpResult: { id: number; link?: string } | null = null;
-    if (publishToWordPress) {
-      wpResult = await publishWordPressDraft({
-        title,
-        body,
-        tags,
-        categoryId,
-        featuredImageUrl: imageUrl,
-      });
-    }
-
-    // Store in pending_posts for tracking
-    await prisma.pendingPost.create({
+    // Save as pending for review in the Approval Queue
+    const pendingPost = await prisma.pendingPost.create({
       data: {
         content: body,
         platform: 'wordpress' as any,
@@ -142,34 +121,25 @@ Respond as JSON:
         generatedImageUrl: imageUrl,
         imageSource: imageUrl ? 'ideogram' : 'none',
         hashtags: tags,
-        status: wpResult ? 'published' : 'pending',
+        status: 'pending',
         generationMetadata: {
           wpTitle: title,
           wpTags: tags,
           wpExcerpt: excerpt,
           postTypeSlug: postType.slug,
-          wpPostId: wpResult?.id ?? null,
+          game,
         } as unknown as Prisma.InputJsonValue,
       },
     });
 
-    if (wpResult) {
-      await prisma.publishedPost.create({
-        data: {
-          platform: 'wordpress',
-          platformPostId: String(wpResult.id),
-          postUrl: wpResult.link,
-        },
-      });
-    }
-
     return res.json({
       ok: true,
+      pendingPostId: pendingPost.id,
       title,
       excerpt,
       tags,
       hasImage: !!imageUrl,
-      wordpress: wpResult ? { id: wpResult.id, link: wpResult.link } : null,
+      status: 'pending_review',
     });
   } catch (e) {
     return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
