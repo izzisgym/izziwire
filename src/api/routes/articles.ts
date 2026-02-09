@@ -52,7 +52,7 @@ router.post('/:id/generate', requireApiKey, async (req, res) => {
     const generateImage = Boolean(req.body?.generateImage);
     const pendingId = await runPipelineForArticle({
       articleId,
-      platform: platform as 'facebook' | 'instagram' | 'both' | 'wordpress',
+      platform: platform as any,
       postType,
       generateImage,
     });

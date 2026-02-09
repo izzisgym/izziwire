@@ -1,22 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { getConfig } from '../config.js';
-import { getSetting } from '../settings/store.js';
 import { NEWS_POST_SYSTEM, newsPostUserTemplate } from './prompts/newsPost.js';
 import { ENGAGEMENT_SYSTEM, engagementUserTemplate } from './prompts/engagement.js';
 import { CARD_SPOTLIGHT_SYSTEM, cardSpotlightUserTemplate } from './prompts/cardSpotlight.js';
 import { pickOpening, pickCharLimit } from './variation.js';
 
-type PostType = 'news' | 'engagement' | 'card_spotlight' | 'poll';
-
-export interface GeneratePostResult {
-  content: string;
-  hashtags: string[];
-  cta: string;
-  tokensUsed?: number;
-  model?: string;
-}
-
-function getSystemPrompt(postType: PostType): string {
+function getSystemPrompt(postType: string): string {
   switch (postType) {
     case 'news':
       return NEWS_POST_SYSTEM;
@@ -32,13 +21,19 @@ function getSystemPrompt(postType: PostType): string {
 
 export async function generatePost(params: {
   topic: string;
-  postType?: PostType;
+  postType?: string;
   platform?: string;
   game?: string;
   facts?: string;
   cardName?: string;
   details?: string;
-}): Promise<GeneratePostResult> {
+}): Promise<{
+  content: string;
+  hashtags: string[];
+  cta?: string;
+  tokensUsed?: number;
+  model?: string;
+}> {
   const cfg = getConfig();
   const postType = params.postType ?? 'news';
   const platform = params.platform ?? 'instagram';
@@ -74,7 +69,7 @@ export async function generatePost(params: {
   }
 
   const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY ?? '' });
-  const model = await getSetting('DEFAULT_AI_MODEL', cfg.DEFAULT_AI_MODEL);
+  const model = cfg.DEFAULT_AI_MODEL;
   const msg = await anthropic.messages.create({
     model,
     max_tokens: 500,
@@ -82,10 +77,8 @@ export async function generatePost(params: {
     messages: [{ role: 'user', content: userPrompt }],
   });
 
-  const text =
-    msg.content.find((c) => c.type === 'text')?.type === 'text'
-      ? (msg.content.find((c) => c.type === 'text') as { type: 'text'; text: string }).text
-      : '';
+  const textBlock = msg.content.find((c) => c.type === 'text');
+  const text = textBlock && textBlock.type === 'text' ? textBlock.text : '';
   const parsed = JSON.parse(text.replace(/^[\s\S]*?\{/, '{').replace(/\}[\s\S]*$/, '}')) as {
     content?: string;
     hashtags?: string[];

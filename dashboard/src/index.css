@@ -367,8 +367,11 @@ a:hover {
 
 /* Inputs */
 input[type="text"],
+input[type="number"],
+input[type="password"],
 input[type="datetime-local"],
 input[type="url"],
+textarea,
 select {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -379,13 +382,15 @@ select {
   transition: all var(--transition);
 }
 input:focus,
+textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
 }
 
-input::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--text-muted);
 }
 

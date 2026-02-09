@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import ApprovalQueue from './pages/ApprovalQueue';
 import PublishedPosts from './pages/PublishedPosts';
+import ContentCreator from './pages/ContentCreator';
+import PostTypes from './pages/PostTypes';
 import Settings from './pages/Settings';
 
 function App() {
@@ -26,6 +28,21 @@ function App() {
           <nav className="sidebar-nav">
             <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              Content Creator
+            </NavLink>
+            <NavLink to="/post-types" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              Post Types
+            </NavLink>
+            <NavLink to="/queue" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 11l3 3L22 4" />
                 <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
               </svg>
@@ -49,7 +66,9 @@ function App() {
         </aside>
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<ApprovalQueue />} />
+            <Route path="/" element={<ContentCreator />} />
+            <Route path="/post-types" element={<PostTypes />} />
+            <Route path="/queue" element={<ApprovalQueue />} />
             <Route path="/published" element={<PublishedPosts />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

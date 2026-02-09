@@ -1,8 +1,9 @@
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { getConfig } from '../../config.js';
 
 const router = Router();
-router.get('/meta', (req: Request, res: Response) => {
+
+router.get('/meta', (req, res) => {
   const cfg = getConfig();
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -15,12 +16,11 @@ router.get('/meta', (req: Request, res: Response) => {
   res.sendStatus(403);
 });
 
-router.post('/meta', (req: Request, res: Response) => {
+router.post('/meta', (req, res) => {
   res.status(200).send('OK');
-  const body = req.body as { object?: string; entry?: unknown[] };
+  const body = req.body;
   if (body.object === 'page' && Array.isArray(body.entry)) {
     // Optional: update published_posts engagement from Meta events
-    // body.entry contains changes (comments, likes, etc.)
   }
 });
 

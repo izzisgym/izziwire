@@ -23,7 +23,7 @@ export async function runPipelineForArticle(params: {
   let wpTitle: string | undefined;
   let wpTags: string[] | undefined;
 
-  if (platform === 'wordpress') {
+  if ((platform as string) === 'wordpress') {
     const wp = await generateWordPressPost({
       topic: article.title,
       summary: article.summary ?? undefined,
@@ -44,7 +44,7 @@ export async function runPipelineForArticle(params: {
 
   let generatedImageUrl: string | null = null;
   let imageSource: string | null = null;
-  const shouldGenerateImage = platform === 'wordpress' ? true : doImage;
+  const shouldGenerateImage = (platform as string) === 'wordpress' ? true : doImage;
   if (shouldGenerateImage) {
     try {
       generatedImageUrl = await generateImage({

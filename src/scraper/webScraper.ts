@@ -1,18 +1,22 @@
 import * as cheerio from 'cheerio';
 import { getConfig } from '../config.js';
-import type { ArticleSnippet } from './rssFetcher.js';
-import type { ScrapeSelector } from './base.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
-import { getSetting } from '../settings/store.js';
+
+interface ScrapedArticle {
+  title: string;
+  url: string;
+  summary?: string;
+  publishedAt?: Date;
+  imageUrl?: string;
+}
 
 export async function scrape(
   url: string,
-  selectors: ScrapeSelector
-): Promise<ArticleSnippet[]> {
+  selectors: Record<string, string>,
+): Promise<ScrapedArticle[]> {
   const cfg = getConfig();
-  const userAgent = await getSetting('USER_AGENT', cfg.USER_AGENT);
   const res = await fetchWithTimeout(url, {
-    headers: { 'User-Agent': userAgent },
+    headers: { 'User-Agent': cfg.USER_AGENT },
   });
   if (!res.ok) {
     throw new Error(`Scrape failed: ${res.status} ${res.statusText} ${url}`);
@@ -20,10 +24,10 @@ export async function scrape(
   const html = await res.text();
   const $ = cheerio.load(html);
   const listSel = selectors.list ?? 'article, .post, .item, [role="article"]';
-  const items: ArticleSnippet[] = [];
+  const items: ScrapedArticle[] = [];
 
-  $(listSel).each((_: number, el) => {
-    const $el = $(el as any);
+  $(listSel).each((_: any, el: any) => {
+    const $el = $(el);
     const linkSel = selectors.link ?? 'a[href]';
     const href = $el.find(linkSel).first().attr('href');
     let urlRes = href ?? '';
@@ -35,10 +39,9 @@ export async function scrape(
         urlRes = '';
       }
     }
-    const title =
-      selectors.title
-        ? $el.find(selectors.title).first().text().trim()
-        : $el.find('h1, h2, h3, a').first().text().trim();
+    const title = selectors.title
+      ? $el.find(selectors.title).first().text().trim()
+      : $el.find('h1, h2, h3, a').first().text().trim();
     const summary = selectors.summary
       ? $el.find(selectors.summary).first().text().trim()
       : $el.find('p').first().text().trim();
@@ -48,10 +51,12 @@ export async function scrape(
     const dateStr = selectors.date
       ? $el.find(selectors.date).first().attr('datetime') ?? $el.find(selectors.date).first().text().trim()
       : undefined;
-    const publishedAt = dateStr ? (() => {
-      const d = new Date(dateStr);
-      return Number.isNaN(d.getTime()) ? undefined : d;
-    })() : undefined;
+    const publishedAt = dateStr
+      ? (() => {
+          const d = new Date(dateStr);
+          return Number.isNaN(d.getTime()) ? undefined : d;
+        })()
+      : undefined;
 
     if (title && urlRes) {
       items.push({
@@ -59,7 +64,11 @@ export async function scrape(
         url: urlRes,
         summary: summary || undefined,
         publishedAt,
-        imageUrl: imageUrl ? (imageUrl.startsWith('http') ? imageUrl : new URL(imageUrl, url).href) : undefined,
+        imageUrl: imageUrl
+          ? imageUrl.startsWith('http')
+            ? imageUrl
+            : new URL(imageUrl, url).href
+          : undefined,
       });
     }
   });

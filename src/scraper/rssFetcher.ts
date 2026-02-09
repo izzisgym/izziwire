@@ -1,24 +1,10 @@
 import Parser from 'rss-parser';
 import { getConfig } from '../config.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
-import { getSetting } from '../settings/store.js';
-
-export interface ArticleSnippet {
-  title: string;
-  url: string;
-  summary?: string;
-  publishedAt?: Date;
-  imageUrl?: string;
-}
-
-interface RateLimit {
-  count: number;
-  resetAt: number;
-}
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 30;
-const limitMap = new Map<string, RateLimit>();
+const limitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(key: string): void {
   const now = Date.now();
@@ -35,23 +21,19 @@ function checkRateLimit(key: string): void {
   }
 }
 
-function parseDate(dateStr: string | undefined): Date | undefined {
+function parseDate(dateStr?: string): Date | undefined {
   if (!dateStr) return undefined;
   const d = new Date(dateStr);
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
-function extractImage(entry: Parser.Item): string | undefined {
-  const item = entry as Parser.Item & {
-    media?: { $?: { url?: string }; url?: string }[];
-    'media:content'?: { $?: { url?: string }; url?: string }[];
-    enclosure?: { url?: string; type?: string };
-  };
+function extractImage(entry: Record<string, any>): string | undefined {
+  const item = entry as any;
   if (item.media?.[0]) {
     const u = item.media[0].$?.url ?? item.media[0].url;
     if (u) return u;
   }
-  const mediaContent = item['media:content'] as unknown as Array<{ $?: { url?: string }; url?: string }> | undefined;
+  const mediaContent = item['media:content'];
   if (mediaContent?.[0]) {
     const u = mediaContent[0].$?.url ?? mediaContent[0].url;
     if (u) return u;
@@ -60,12 +42,6 @@ function extractImage(entry: Parser.Item): string | undefined {
     return item.enclosure.url;
   }
   return undefined;
-}
-
-export interface FetchFeedResult {
-  articles: ArticleSnippet[];
-  etag: string | null;
-  modified: string | null;
 }
 
 const parser = new Parser({
@@ -77,20 +53,28 @@ const parser = new Parser({
   },
 });
 
+export interface ArticleSnippet {
+  title: string;
+  url: string;
+  summary?: string;
+  publishedAt?: Date;
+  imageUrl?: string;
+}
+
+type FeedArticle = ArticleSnippet;
+
 export async function fetchFeed(
   feedUrl: string,
   etag: string | null = null,
-  modified: string | null = null
-): Promise<FetchFeedResult> {
+  modified: string | null = null,
+): Promise<{ articles: FeedArticle[]; etag: string | null; modified: string | null }> {
   checkRateLimit(feedUrl);
   const cfg = getConfig();
-  const userAgent = await getSetting('USER_AGENT', cfg.USER_AGENT);
-
-  const opts: RequestInit = {
-    headers: { 'User-Agent': userAgent },
+  const opts: RequestInit & { headers: Record<string, string> } = {
+    headers: { 'User-Agent': cfg.USER_AGENT },
   };
-  if (etag) (opts.headers as Record<string, string>)['If-None-Match'] = etag;
-  if (modified) (opts.headers as Record<string, string>)['If-Modified-Since'] = modified;
+  if (etag) opts.headers['If-None-Match'] = etag;
+  if (modified) opts.headers['If-Modified-Since'] = modified;
 
   const res = await fetchWithTimeout(feedUrl, opts);
   if (res.status === 304) {
@@ -102,11 +86,10 @@ export async function fetchFeed(
 
   const text = await res.text();
   const feed = await parser.parseString(text);
-
   const newEtag = res.headers.get('etag') ?? null;
   const newModified = res.headers.get('last-modified') ?? null;
 
-  const articles: ArticleSnippet[] = (feed.items ?? []).map((entry) => ({
+  const articles: FeedArticle[] = (feed.items ?? []).map((entry) => ({
     title: entry.title ?? '',
     url: entry.link ?? '',
     summary: entry.contentSnippet ?? entry.content?.slice(0, 500),

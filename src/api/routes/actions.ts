@@ -31,7 +31,7 @@ router.post('/run-now', requireApiKey, async (_req, res) => {
       try {
         const pendingId = await runPipelineForArticle({
           articleId: a.id,
-          platform: 'wordpress',
+          platform: 'wordpress' as any,
           postType: 'news',
           generateImage: true,
         });

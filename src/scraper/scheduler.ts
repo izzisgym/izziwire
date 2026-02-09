@@ -3,22 +3,10 @@ import { getPrisma } from '../api/deps.js';
 import { getConfig } from '../config.js';
 import { fetchFeed } from './rssFetcher.js';
 import { scrape } from './webScraper.js';
-import { getSetting } from '../settings/store.js';
-import { runSearchCycle } from '../search/newsSearch.js';
 
 const prisma = getPrisma();
 
 export async function runScrapeCycle(): Promise<{ scraped: number; errors: string[] }> {
-  const searchEnabled = await getSetting('NEWS_SEARCH_ENABLED', true);
-  if (searchEnabled) {
-    const { created, errors } = await runSearchCycle();
-    return { scraped: created, errors };
-  }
-
-  const enabled = await getSetting('SCRAPE_ENABLED', true);
-  if (!enabled) {
-    return { scraped: 0, errors: ['Scrape disabled'] };
-  }
   const sources = await prisma.newsSource.findMany({
     where: { isActive: true },
     orderBy: { priority: 'desc' },
@@ -32,7 +20,7 @@ export async function runScrapeCycle(): Promise<{ scraped: number; errors: strin
         const { articles, etag, modified } = await fetchFeed(
           src.rssFeedUrl,
           src.lastEtag,
-          src.lastModified
+          src.lastModified,
         );
         for (const a of articles) {
           await prisma.article.upsert({
@@ -64,7 +52,7 @@ export async function runScrapeCycle(): Promise<{ scraped: number; errors: strin
           },
         });
       } else if (src.sourceType === 'web') {
-        const selectors = (src.scrapeSelector as Record<string, string> | null) ?? {};
+        const selectors = (src.scrapeSelector ?? {}) as Record<string, string>;
         const articles = await scrape(src.url, selectors);
         for (const a of articles) {
           await prisma.article.upsert({
@@ -92,20 +80,17 @@ export async function runScrapeCycle(): Promise<{ scraped: number; errors: strin
           data: { lastScrapedAt: new Date() },
         });
       }
-      // api sources: could add later (pokemontcg.io, scryfall, etc.)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`${src.name}: ${msg}`);
     }
   }
-
   return { scraped, errors };
 }
 
-export async function startScheduler(): Promise<void> {
+export function startScheduler(): void {
   const cfg = getConfig();
-  const interval = await getSetting('SCRAPE_INTERVAL_HOURS', cfg.SCRAPE_INTERVAL_HOURS);
-  const expr = `0 */${interval} * * *`; // every N hours
+  const expr = `0 */${cfg.SCRAPE_INTERVAL_HOURS} * * *`;
   cron.schedule(expr, async () => {
     try {
       const { scraped, errors } = await runScrapeCycle();
@@ -115,5 +100,5 @@ export async function startScheduler(): Promise<void> {
       console.error('Scrape cycle failed:', e);
     }
   });
-  console.log(`Scheduler started: every ${interval} hours`);
+  console.log(`Scheduler started: every ${cfg.SCRAPE_INTERVAL_HOURS} hours`);
 }

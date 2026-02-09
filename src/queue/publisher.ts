@@ -34,7 +34,7 @@ export async function runPublishCycle(): Promise<{ published: number; errors: st
       let anySuccess = false;
       const errorNotes: string[] = [];
       try {
-        if (post.platform === 'wordpress') {
+        if ((post.platform as string) === 'wordpress') {
           const already = await prisma.publishedPost.findFirst({
             where: { pendingPostId: post.id, platform: 'wordpress' },
           });
@@ -79,7 +79,7 @@ export async function runPublishCycle(): Promise<{ published: number; errors: st
               message: post.content,
             };
             if (post.generatedImageUrl) payload.picture = post.generatedImageUrl;
-            const result = await retry(() => postToPage(payload), { attempts: 3, delayMs: 2000 });
+            const result = await retry(() => postToPage(payload), { attempts: 3, delayMs: 2000 }) as { id: string; post_id?: string };
             await prisma.publishedPost.create({
               data: {
                 pendingPostId: post.id,
@@ -110,7 +110,7 @@ export async function runPublishCycle(): Promise<{ published: number; errors: st
                     hashtags: post.hashtags,
                   }),
                 { attempts: 3, delayMs: 2000 }
-              );
+              ) as { id: string };
               await prisma.publishedPost.create({
                 data: {
                   pendingPostId: post.id,
