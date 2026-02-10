@@ -48,8 +48,8 @@ router.post('/', requireApiKey, async (_req, res) => {
 
 You are writing a "Card Spotlight" post about a specific MTG card. Your audience are MTG players ranging from casual to competitive.
 
-WRITING GUIDELINES:
-- Open with an engaging hook about the card
+CARD SPOTLIGHT GUIDELINES:
+- Open with a hook about the card — what makes it exciting, broken, or unique
 - Cover the card's abilities and what makes it interesting or powerful
 - Discuss strategy: what decks it fits in, key combos, and how to use it effectively
 - Mention the artist and comment on the artwork
@@ -57,10 +57,15 @@ WRITING GUIDELINES:
 - If the card has a notable price, mention market value and why
 - If the card has flavor text, discuss the lore
 - End with a verdict: who should play this card and why
-- Format as HTML with <h2> for sections and <p> for paragraphs
-- Keep it between 600 and 1200 words
-- Be enthusiastic but informative
-- Do NOT include <img> tags in the body
+
+WRITING STYLE (always follow):
+- Lead with the hook. First sentence = the most exciting fact about this card.
+- Short paragraphs: 2-3 sentences max per <p> tag. Break up the text.
+- 8th-grade reading level. Simple words, short sentences, easy to scan.
+- One clear call to action (e.g. "grab one before the price climbs").
+- Format as HTML with <h2> for sections and <p> for paragraphs.
+- Keep it between 600 and 1200 words.
+- Do NOT include <img> tags in the body.
 
 Output valid JSON only, no extra text.`;
 

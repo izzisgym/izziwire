@@ -10,7 +10,7 @@ export interface WordPressDraft {
 }
 
 const DEFAULT_INSTRUCTIONS =
-  'Write engaging, well-structured blog posts for a TCG community audience. Use a conversational but knowledgeable tone. Structure with an intro paragraph, 3-4 body sections with subheadings (use HTML <h2> tags), and a conclusion. Include strategic insights and community relevance. Format the body as HTML with <h2> for sections and <p> for paragraphs.';
+  'Lead with the hook right in the first sentence — the most exciting or urgent fact up front (e.g. "New Pokemon drop this Friday" or "Free tournament this Saturday"). Keep paragraphs SHORT — 2-3 sentences max, with line breaks between them. No walls of text. Write at an 8th-grade reading level: simple words, short sentences, easy to scan. Include one clear call to action (visit, buy, sign up, check it out) — don\'t bury it. Structure with an intro hook, 2-4 body sections with subheadings (use HTML <h2> tags), and a short punchy conclusion. Format the body as HTML with <h2> for sections and <p> for paragraphs.';
 
 export async function generateWordPressPost(params: {
   topic: string;
@@ -31,9 +31,16 @@ export async function generateWordPressPost(params: {
   const maxWords = await getSetting('WP_MAX_WORDS', 1200);
 
   const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
-  const system = `You are a professional blog writer. Follow these instructions exactly:
+  const system = `You are a professional blog writer for TCG communities. Follow these instructions exactly:
 
 ${instructions}
+
+WRITING STYLE (always follow):
+- Lead with the hook. First sentence = the most exciting or urgent fact.
+- Short paragraphs: 2-3 sentences max per <p> tag. Break up the text.
+- 8th-grade reading level. Simple words, short sentences, easy to scan.
+- One clear call to action — don't bury it at the end.
+- Do NOT include <img> tags in the body.
 
 IMPORTANT RULES:
 - The post MUST be between ${minWords} and ${maxWords} words.

@@ -54,6 +54,13 @@ ${postType.description ? `DESCRIPTION: ${postType.description}` : ''}
 WRITING INSTRUCTIONS:
 ${postType.instructions}
 
+WRITING STYLE (always follow):
+- Lead with the hook. First sentence = the most exciting or urgent fact.
+- Short paragraphs: 2-3 sentences max per <p> tag. Break up the text.
+- 8th-grade reading level. Simple words, short sentences, easy to scan.
+- One clear call to action — don't bury it at the end.
+- Do NOT include <img> tags in the body.
+
 RULES:
 - The post MUST be between ${postType.minWords} and ${postType.maxWords} words.
 - Output valid JSON only, no extra text.

@@ -52,7 +52,7 @@ function defaultsFromConfig() {
     AUTO_GENERATE_LIMIT: 5,
     AUTO_GENERATE_WINDOW_HOURS: 6,
     WP_WRITING_INSTRUCTIONS:
-      'Write engaging, well-structured blog posts for a TCG community audience. Use a conversational but knowledgeable tone. Structure with an intro paragraph, 3-4 body sections with subheadings (use HTML <h2> tags), and a conclusion. Include strategic insights and community relevance. Format the body as HTML with <h2> for sections and <p> for paragraphs.',
+      'Lead with the hook right in the first sentence — the most exciting or urgent fact up front (e.g. "New Pokemon drop this Friday" or "Free tournament this Saturday"). Keep paragraphs SHORT — 2-3 sentences max, with line breaks between them. No walls of text. Write at an 8th-grade reading level: simple words, short sentences, easy to scan. Include one clear call to action (visit, buy, sign up, check it out) — don\'t bury it. Structure with an intro hook, 2-4 body sections with subheadings (use HTML <h2> tags), and a short punchy conclusion. Format the body as HTML with <h2> for sections and <p> for paragraphs.',
     WP_MIN_WORDS: 600,
     WP_MAX_WORDS: 1200,
     SEARCH_INSTRUCTIONS:
