@@ -78,6 +78,10 @@ async function main() {
     process.stdout.write(`Server listening on ${host}:${port}\n`);
   });
 
+  // Start the autonomous content agent
+  const { startScheduler } = await import('./scraper/scheduler.js');
+  startScheduler();
+
   if (cfg.SENTRY_DSN) {
     const Sentry = await import('@sentry/node');
     Sentry.init({

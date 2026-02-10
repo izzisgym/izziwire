@@ -131,15 +131,13 @@ export default function Settings() {
       }
       const data = (await res.json()) as {
         scraped: number;
-        unprocessedArticles?: number;
-        articlesFound?: number;
+        searched: number;
         generated: number;
-        pendingReview?: number;
         errors?: string[];
       };
       const errorDetail = data.errors?.length ? `\nErrors:\n${data.errors.join('\n')}` : '';
       setSaveStatus(
-        `Run complete: scraped ${data.scraped}, unprocessed: ${data.unprocessedArticles ?? '?'}, picked: ${data.articlesFound ?? '?'}, generated ${data.generated} → sent to Approval Queue${errorDetail}`
+        `Run complete: scraped ${data.scraped}, web search found ${data.searched}, generated ${data.generated} posts → Approval Queue${errorDetail}`
       );
     } catch (e) {
       setSaveStatus(`Run failed: ${e instanceof Error ? e.message : 'Network error'}`);
