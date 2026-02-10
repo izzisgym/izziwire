@@ -137,13 +137,19 @@ router.post('/:id/publish', requireApiKey, async (req, res) => {
           ? await getSetting('WP_CATEGORY_ONEPIECE', 0)
           : await getSetting('WP_CATEGORY_MTG', 0);
 
-    const wpResult = await publishWordPressDraft({
-      title,
-      body: post.content,
-      tags,
-      categoryId,
-      featuredImageUrl: post.generatedImageUrl ?? null,
-    });
+    let wpResult: { id: number; link?: string };
+    try {
+      wpResult = await publishWordPressDraft({
+        title,
+        body: post.content,
+        tags,
+        categoryId,
+        featuredImageUrl: post.generatedImageUrl ?? null,
+      });
+    } catch (wpErr) {
+      const wpMsg = wpErr instanceof Error ? wpErr.message : 'Unknown WordPress error';
+      return res.status(500).json({ error: `WordPress publish failed: ${wpMsg}` });
+    }
 
     await prisma.pendingPost.update({
       where: { id: postId },

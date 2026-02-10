@@ -83,10 +83,20 @@ export async function publishWordPressDraft(params: {
   const { baseUrl, auth } = getAuthHeader();
   const tagIds: number[] = [];
   for (const tag of params.tags ?? []) {
-    tagIds.push(await ensureTagId(tag));
+    try {
+      tagIds.push(await ensureTagId(tag));
+    } catch {
+      // skip tags that fail to create
+    }
   }
-  const featuredMedia =
-    params.featuredImageUrl ? await uploadFeaturedImage(params.featuredImageUrl, params.title) : undefined;
+  let featuredMedia: number | undefined;
+  if (params.featuredImageUrl) {
+    try {
+      featuredMedia = await uploadFeaturedImage(params.featuredImageUrl, params.title);
+    } catch {
+      // image upload failed, continue without featured image
+    }
+  }
 
   const res = await fetchWithTimeout(`${baseUrl}/wp-json/wp/v2/posts`, {
     method: 'POST',
