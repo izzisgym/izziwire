@@ -1,9 +1,64 @@
 import { getConfig } from '../config.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 
+const VALID_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+]);
+
+const MIN_IMAGE_BYTES = 2_000; // reject tiny tracking pixels
+
+/**
+ * Probe a URL with a HEAD request to verify it's a real image.
+ * Exported so other modules (e.g. newsSearch) can reuse it.
+ */
+export async function isValidImageUrl(url: string): Promise<boolean> {
+  try {
+    // Try HEAD first (cheap, no body transfer)
+    const head = await fetchWithTimeout(url, { method: 'HEAD' }, 8_000);
+    if (!head.ok) return false;
+
+    const ct = (head.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
+    if (!VALID_IMAGE_TYPES.has(ct)) return false;
+
+    // Check Content-Length if available
+    const cl = head.headers.get('content-length');
+    if (cl && parseInt(cl, 10) < MIN_IMAGE_BYTES) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Collect all candidate image URLs from Tavily response.
+ */
+function extractCandidateUrls(data: {
+  images?: Array<string | { url?: string }>;
+  results?: Array<{ url?: string; image?: string }>;
+}): string[] {
+  const urls: string[] = [];
+
+  for (const img of data.images ?? []) {
+    const url = typeof img === 'string' ? img : img?.url;
+    if (url) urls.push(url);
+  }
+
+  for (const r of data.results ?? []) {
+    if (r.image) urls.push(r.image);
+  }
+
+  return urls;
+}
+
 /**
  * Search for a relevant image for a given topic using Tavily's image search.
  * Returns the URL of the best matching image, or null if none found.
+ * Validates each candidate URL to ensure it actually points to a real image.
  */
 export async function findImageForTopic(topic: string, game: string): Promise<string | null> {
   const cfg = getConfig();
@@ -28,21 +83,17 @@ export async function findImageForTopic(topic: string, game: string): Promise<st
     if (!res.ok) return null;
 
     const data = (await res.json()) as {
-      images?: Array<{ url?: string }>;
+      images?: Array<string | { url?: string }>;
       results?: Array<{ url?: string; image?: string }>;
     };
 
-    // First try the dedicated images array
-    if (data.images?.length) {
-      const url = typeof data.images[0] === 'string'
-        ? data.images[0]
-        : data.images[0]?.url;
-      if (url) return url;
-    }
+    const candidates = extractCandidateUrls(data);
 
-    // Fall back to images from search results
-    for (const r of data.results ?? []) {
-      if (r.image) return r.image;
+    // Validate candidates -- return the first one that's a real, reachable image
+    for (const url of candidates) {
+      if (await isValidImageUrl(url)) {
+        return url;
+      }
     }
 
     return null;

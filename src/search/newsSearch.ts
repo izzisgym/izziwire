@@ -2,6 +2,7 @@ import { getConfig } from '../config.js';
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
 import { getPrisma } from '../api/deps.js';
 import { getSetting } from '../settings/store.js';
+import { isValidImageUrl } from './imageFinder.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 type Game = 'pokemon' | 'onepiece' | 'mtg';
@@ -230,6 +231,13 @@ async function runTopicSearch(
   let created = 0;
 
   for (const r of selected) {
+    // Validate the image URL is a real, reachable image before storing
+    let validImageUrl: string | null = null;
+    if (r.imageUrl) {
+      const valid = await isValidImageUrl(r.imageUrl);
+      validImageUrl = valid ? r.imageUrl : null;
+    }
+
     await prisma.article.upsert({
       where: { url: r.url },
       create: {
@@ -237,7 +245,7 @@ async function runTopicSearch(
         title: r.title,
         url: r.url,
         summary: r.summary,
-        imageUrl: r.imageUrl ?? null,
+        imageUrl: validImageUrl,
         publishedAt: r.publishedAt ?? null,
         game,
         contentType: 'search',
@@ -246,7 +254,7 @@ async function runTopicSearch(
       update: {
         title: r.title,
         summary: r.summary,
-        imageUrl: r.imageUrl ?? null,
+        imageUrl: validImageUrl,
         publishedAt: r.publishedAt ?? null,
       },
     });

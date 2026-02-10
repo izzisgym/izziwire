@@ -44,17 +44,55 @@ async function ensureTagId(name: string): Promise<number> {
   return created.id;
 }
 
+const VALID_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/svg+xml',
+]);
+
+const EXT_MAP: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/avif': '.avif',
+  'image/svg+xml': '.svg',
+};
+
+const MIN_IMAGE_BYTES = 2_000;     // reject tiny tracking pixels / error images
+const MAX_IMAGE_BYTES = 25_000_000; // 25 MB safety cap
+
 async function uploadFeaturedImage(imageUrl: string, title: string): Promise<number> {
   const { baseUrl, auth } = getAuthHeader();
-  const imgRes = await fetchWithTimeout(imageUrl);
+
+  // Fetch the external image
+  const imgRes = await fetchWithTimeout(imageUrl, undefined, 20_000);
   if (!imgRes.ok) {
-    const text = await imgRes.text();
-    throw new Error(`Image fetch failed: ${imgRes.status} ${text}`);
+    throw new Error(`Image fetch failed: ${imgRes.status}`);
   }
+
+  // Validate that the response is actually an image
+  const contentType = (imgRes.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
+  if (!VALID_IMAGE_TYPES.has(contentType)) {
+    throw new Error(`Not a valid image: Content-Type is "${contentType}" (URL: ${imageUrl.slice(0, 120)})`);
+  }
+
   const buf = Buffer.from(await imgRes.arrayBuffer());
-  const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+
+  // Validate file size
+  if (buf.length < MIN_IMAGE_BYTES) {
+    throw new Error(`Image too small (${buf.length} bytes) -- likely a placeholder or tracking pixel`);
+  }
+  if (buf.length > MAX_IMAGE_BYTES) {
+    throw new Error(`Image too large (${(buf.length / 1_000_000).toFixed(1)} MB)`);
+  }
+
   const safeName = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50) || 'featured';
-  const filename = `${safeName}.jpg`;
+  const ext = EXT_MAP[contentType] ?? '.jpg';
+  const filename = `${safeName}${ext}`;
 
   const uploadRes = await fetchWithTimeout(`${baseUrl}/wp-json/wp/v2/media`, {
     method: 'POST',
@@ -64,7 +102,7 @@ async function uploadFeaturedImage(imageUrl: string, title: string): Promise<num
       'Content-Disposition': `attachment; filename="${filename}"`,
     },
     body: buf,
-  });
+  }, 30_000);
   if (!uploadRes.ok) {
     const text = await uploadRes.text();
     throw new Error(`Media upload failed: ${uploadRes.status} ${text}`);
@@ -93,8 +131,10 @@ export async function publishWordPressDraft(params: {
   if (params.featuredImageUrl) {
     try {
       featuredMedia = await uploadFeaturedImage(params.featuredImageUrl, params.title);
-    } catch {
-      // image upload failed, continue without featured image
+    } catch (imgErr) {
+      const reason = imgErr instanceof Error ? imgErr.message : String(imgErr);
+      console.warn(`[wordpress] Featured image skipped: ${reason}`);
+      // continue without featured image rather than failing the whole post
     }
   }
 
