@@ -14,6 +14,7 @@ import settingsRouter from './api/routes/settings.js';
 import actionsRouter from './api/routes/actions.js';
 import postTypesRouter from './api/routes/postTypes.js';
 import generateRouter from './api/routes/generate.js';
+import cardSpotlightRouter from './api/routes/cardSpotlight.js';
 
 async function main() {
   process.stdout.write('Starting izziwire...\n');
@@ -61,6 +62,7 @@ async function main() {
   app.use('/api/actions', actionsRouter);
   app.use('/api/post-types', postTypesRouter);
   app.use('/api/generate', generateRouter);
+  app.use('/api/card-spotlight', cardSpotlightRouter);
   app.use('/webhooks', webhooksRouter);
 
   if (hasDashboard) {

@@ -154,6 +154,17 @@ export const DEFAULT_POST_TYPES: PostTypeConfig[] = [
     generateImage: true,
     isActive: true,
   },
+  {
+    name: 'MTG Card Spotlight (Random)',
+    slug: 'mtg-card-spotlight',
+    description: 'Auto-fetches a random MTG card from Scryfall with art, facts, and strategy',
+    instructions:
+      'Write an engaging Card Spotlight post about a specific MTG card. Cover the card abilities, strategy and combos, artist and artwork commentary, set context, market value, lore/flavor text, and a final verdict. Use the card image from Scryfall as the featured image. Format as HTML with <h2> and <p> tags.',
+    minWords: 600,
+    maxWords: 1200,
+    generateImage: false,
+    isActive: true,
+  },
 ];
 
 export default router;

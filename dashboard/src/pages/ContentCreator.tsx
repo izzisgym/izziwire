@@ -22,6 +22,41 @@ interface GenerateResult {
   error?: string;
 }
 
+interface CardPreview {
+  name: string;
+  typeLine: string;
+  manaCost: string | null;
+  oracleText: string | null;
+  power: string | null;
+  toughness: string | null;
+  rarity: string;
+  setName: string;
+  artist: string | null;
+  imageUrl: string | null;
+  artCropUrl: string | null;
+  priceUsd: string | null;
+  tcgplayerUrl: string | null;
+}
+
+interface CardSpotlightResult {
+  ok: boolean;
+  pendingPostId?: string;
+  title?: string;
+  excerpt?: string;
+  tags?: string[];
+  hasImage?: boolean;
+  card?: {
+    name: string;
+    set: string;
+    rarity: string;
+    artist: string | null;
+    priceUsd: string | null;
+    imageUrl: string | null;
+  };
+  status?: string;
+  error?: string;
+}
+
 export default function ContentCreator() {
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +69,13 @@ export default function ContentCreator() {
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Card Spotlight state
+  const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardGenerating, setCardGenerating] = useState(false);
+  const [cardResult, setCardResult] = useState<CardSpotlightResult | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
 
   const apiKey = localStorage.getItem('izziwire_api_key') || '';
 
@@ -87,6 +129,54 @@ export default function ContentCreator() {
     }
   }
 
+  async function fetchRandomCard() {
+    setCardLoading(true);
+    setCardError(null);
+    setCardResult(null);
+    try {
+      const res = await fetch('/api/card-spotlight/preview', {
+        headers: { ...(apiKey ? { 'x-api-key': apiKey } : {}) },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: res.statusText }));
+        setCardError(data.error || `Failed (${res.status})`);
+        return;
+      }
+      const data = (await res.json()) as CardPreview;
+      setCardPreview(data);
+    } catch (e) {
+      setCardError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setCardLoading(false);
+    }
+  }
+
+  async function generateCardSpotlight() {
+    setCardGenerating(true);
+    setCardResult(null);
+    setCardError(null);
+    try {
+      const res = await fetch('/api/card-spotlight', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { 'x-api-key': apiKey } : {}),
+        },
+      });
+      const data = (await res.json()) as CardSpotlightResult;
+      if (!res.ok) {
+        setCardError(data.error || `Failed (${res.status})`);
+      } else {
+        setCardResult(data);
+        setCardPreview(null);
+      }
+    } catch (e) {
+      setCardError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setCardGenerating(false);
+    }
+  }
+
   const gameOptions = [
     { value: 'pokemon', label: 'Pokemon', color: 'var(--game-pokemon)', textColor: '#1a1a1a' },
     { value: 'onepiece', label: 'One Piece', color: 'var(--game-onepiece)', textColor: 'white' },
@@ -98,6 +188,203 @@ export default function ContentCreator() {
       <div className="page-header">
         <h1 className="page-title">Content Creator</h1>
         <p className="page-subtitle">Generate blog posts for your TCG community</p>
+      </div>
+
+      {/* MTG Random Card Spotlight */}
+      <div className="card">
+        <h2 style={{ fontSize: 18, marginBottom: 16, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M12 8v8" />
+            <path d="M8 12h8" />
+          </svg>
+          MTG Random Card Spotlight
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16, lineHeight: 1.6 }}>
+          Fetch a random Magic: The Gathering card and generate a blog post featuring its art, abilities, strategy tips, artist info, and market price.
+        </p>
+
+        {/* Card Preview */}
+        {cardPreview && (
+          <div style={{
+            display: 'flex',
+            gap: 24,
+            marginBottom: 20,
+            padding: 20,
+            background: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-md)',
+            flexWrap: 'wrap',
+          }}>
+            {cardPreview.imageUrl && (
+              <img
+                src={cardPreview.imageUrl}
+                alt={cardPreview.name}
+                style={{
+                  width: 240,
+                  borderRadius: 12,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                }}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: 'var(--text-primary)' }}>
+                {cardPreview.name}
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                {cardPreview.typeLine}
+              </div>
+              {cardPreview.manaCost && (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
+                  Mana: {cardPreview.manaCost}
+                </div>
+              )}
+              {cardPreview.oracleText && (
+                <div style={{
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.6,
+                  marginBottom: 12,
+                  padding: '10px 14px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontStyle: 'italic',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {cardPreview.oracleText}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: 'var(--text-muted)' }}>
+                {cardPreview.power && cardPreview.toughness && (
+                  <span>P/T: {cardPreview.power}/{cardPreview.toughness}</span>
+                )}
+                <span style={{ textTransform: 'capitalize' }}>{cardPreview.rarity}</span>
+                <span>{cardPreview.setName}</span>
+                {cardPreview.artist && <span>Art by {cardPreview.artist}</span>}
+                {cardPreview.priceUsd && <span style={{ color: 'var(--accent-success)', fontWeight: 600 }}>${cardPreview.priceUsd}</span>}
+              </div>
+              {cardPreview.tcgplayerUrl && (
+                <a
+                  href={cardPreview.tcgplayerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 13, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block' }}
+                >
+                  View on TCGPlayer
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Card Spotlight Result */}
+        {cardResult && cardResult.ok && (
+          <div style={{
+            marginBottom: 20,
+            padding: 20,
+            background: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-md)',
+            borderLeft: '4px solid var(--accent-success)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <span style={{ fontWeight: 600, color: 'var(--accent-success)' }}>Card Spotlight Generated</span>
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>{cardResult.title}</div>
+            {cardResult.excerpt && (
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.6 }}>
+                {cardResult.excerpt}
+              </div>
+            )}
+            {cardResult.card && (
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                {cardResult.card.name} &middot; {cardResult.card.set} &middot; {cardResult.card.rarity}
+                {cardResult.card.priceUsd && ` · $${cardResult.card.priceUsd}`}
+              </div>
+            )}
+            {cardResult.tags && cardResult.tags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                {cardResult.tags.map((tag, i) => (
+                  <span key={i} className="hashtag">{tag}</span>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 13 }}>
+              <span style={{
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: 'var(--accent-warning)',
+                padding: '4px 10px',
+                borderRadius: 20,
+                fontWeight: 600,
+                fontSize: 12,
+              }}>
+                Pending Review
+              </span>
+              <a href="/queue" style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
+                Go to Approval Queue
+              </a>
+            </div>
+          </div>
+        )}
+
+        {cardError && (
+          <div className="error-message" style={{ marginBottom: 16 }}>
+            {cardError}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <button
+            onClick={fetchRandomCard}
+            disabled={cardLoading}
+            style={{
+              padding: '10px 20px',
+              background: 'var(--bg-secondary)',
+              border: '2px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              cursor: cardLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              opacity: cardLoading ? 0.6 : 1,
+            }}
+          >
+            {cardLoading ? (
+              <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Rolling...</>
+            ) : (
+              <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg> {cardPreview ? 'Reroll Card' : 'Random Card'}</>
+            )}
+          </button>
+          {cardPreview && (
+            <button
+              onClick={generateCardSpotlight}
+              disabled={cardGenerating}
+              style={{
+                padding: '10px 24px',
+                background: cardGenerating ? 'var(--bg-hover)' : 'linear-gradient(135deg, var(--game-mtg), #1a1a2e)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 600,
+                cursor: cardGenerating ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                opacity: cardGenerating ? 0.7 : 1,
+              }}
+            >
+              {cardGenerating ? (
+                <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Generating post...</>
+              ) : (
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> Generate Card Spotlight</>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
