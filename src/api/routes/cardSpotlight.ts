@@ -62,18 +62,21 @@ router.post('/', requireApiKey, async (_req, res) => {
     const system = `MTG Card Spotlight. Each <p> max 80 words—split longer. Hook, abilities, strategy, artist, set/rarity, price, flavor, verdict. End with one reader question ("Have you used this card?" etc). <h2> + <p> only, 600–1200 words. Output only JSON.`;
     const user = `Spotlight this card. Each <p> ≤80 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
 
-    const createOptions = {
+    const messages: { role: 'user'; content: string }[] = [{ role: 'user', content: user }];
+    const createBody = {
       model: cfg.DEFAULT_AI_MODEL,
       max_tokens: 2500,
       system,
-      messages: [{ role: 'user', content: user }],
-    } as const;
+      messages,
+    };
 
-    let msg: Awaited<ReturnType<Anthropic['messages']['create']>> | undefined;
+    type MessageResult = { content: Array<{ type: string; text?: string }> };
+    let msg: MessageResult | undefined;
     let lastErr: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        msg = await anthropic.messages.create(createOptions);
+        const response = await anthropic.messages.create(createBody);
+        msg = response as MessageResult;
         break;
       } catch (e: unknown) {
         lastErr = e;
@@ -87,8 +90,8 @@ router.post('/', requireApiKey, async (_req, res) => {
     }
     if (!msg) throw lastErr;
 
-    const textBlock = msg.content.find((c) => c.type === 'text');
-    const rawText = textBlock && textBlock.type === 'text' ? textBlock.text : '';
+    const textBlock = msg.content.find((c: { type: string }) => c.type === 'text');
+    const rawText = (textBlock && textBlock.type === 'text' ? textBlock.text : '') ?? '';
     const cleaned = rawText
       .replace(/^```(?:json)?\s*\n?/m, '')
       .replace(/\n?```\s*$/m, '')
