@@ -57,15 +57,20 @@ CARD SPOTLIGHT GUIDELINES:
 - If the card has a notable price, mention market value and why
 - If the card has flavor text, discuss the lore
 - End with a verdict: who should play this card and why
+- End every post with an engaging question to the reader. Use one that fits the card, e.g. "Have you ever used this card?", "Do you have this card?", "Have you ever heard of this card?" — or a similar question that invites comments.
 
 WRITING STYLE (always follow):
 - Lead with the hook. First sentence = the most exciting fact about this card.
-- Short paragraphs: 2-3 sentences max per <p> tag. Break up the text.
+- Paragraph rule: each <p> must be 80 words or less. Short paragraphs with line breaks — a 150-word wall of text feels long, but broken into 2–3 short chunks it reads fast. Never write a single paragraph longer than 80 words.
+- 2–3 sentences per <p> max. Use multiple <p> tags to break up ideas; avoid long blocks.
 - 8th-grade reading level. Simple words, short sentences, easy to scan.
 - One clear call to action (e.g. "grab one before the price climbs").
 - Format as HTML with <h2> for sections and <p> for paragraphs.
-- Keep it between 600 and 1200 words.
+- Keep it between 600 and 1200 words total.
 - Do NOT include <img> tags in the body.
+
+PROCESS (do this before outputting):
+- Before you output the final JSON, critique your draft 10 times from different angles: (1) Is the hook strong? (2) Is each paragraph under 80 words? (3) Are chunks short with clear line breaks? (4) Is the strategy section useful? (5) Is the verdict clear? (6) Does it end with an engaging question to the reader? (7) Is the reading level simple and scannable? (8) Is the call to action clear? (9) Does the flow hold together? (10) Would a real player find this worth reading? Revise the post after each critique until it is the best possible version. Then output only the final JSON — no critique text, no draft history.
 
 Output valid JSON only, no extra text.`;
 
@@ -76,7 +81,7 @@ ${cardContext}
 Respond as JSON:
 {
   "title": "a compelling blog post title featuring the card name",
-  "body": "the full blog post as HTML (600-1200 words)",
+  "body": "the full blog post as HTML (600-1200 words total; each <p> 80 words or less, short chunks; end with an engaging question to the reader, e.g. Have you ever used this card? / Do you have this card? / Have you ever heard of this card?)",
   "tags": ["mtg", "card-spotlight", "and", "3-5", "more relevant tags"],
   "excerpt": "a 1-2 sentence teaser for the post preview"
 }`;
