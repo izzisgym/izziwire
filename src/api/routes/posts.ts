@@ -3,6 +3,8 @@ import * as workflow from '../../queue/workflow.js';
 import { z } from 'zod';
 import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
+import { getConfig } from '../../config.js';
+import { fetchWithTimeout } from '../../lib/fetchWithTimeout.js';
 import { publishWordPressDraft } from '../../publish/wordpress.js';
 import { getSetting } from '../../settings/store.js';
 
@@ -173,6 +175,42 @@ router.post('/:id/publish', requireApiKey, async (req, res) => {
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
     return res.status(500).json({ error: msg });
+  }
+});
+
+// Debug endpoint to test WordPress connection
+router.get('/wp-test', requireApiKey, async (_req, res) => {
+  try {
+    const cfg = getConfig();
+    if (!cfg.WORDPRESS_URL || !cfg.WORDPRESS_USERNAME || !cfg.WORDPRESS_APP_PASSWORD) {
+      return res.json({
+        ok: false,
+        error: 'Missing credentials',
+        hasUrl: !!cfg.WORDPRESS_URL,
+        hasUsername: !!cfg.WORDPRESS_USERNAME,
+        hasPassword: !!cfg.WORDPRESS_APP_PASSWORD,
+      });
+    }
+
+    const baseUrl = cfg.WORDPRESS_URL.replace(/\/$/, '');
+    const token = Buffer.from(`${cfg.WORDPRESS_USERNAME}:${cfg.WORDPRESS_APP_PASSWORD}`).toString('base64');
+
+    // Test 1: Can we reach the REST API at all?
+    const apiRes = await fetchWithTimeout(`${baseUrl}/wp-json/wp/v2/users/me`, {
+      headers: { Authorization: `Basic ${token}` },
+    });
+    const apiBody = await apiRes.text();
+
+    return res.json({
+      ok: apiRes.ok,
+      status: apiRes.status,
+      url: `${baseUrl}/wp-json/wp/v2/users/me`,
+      username: cfg.WORDPRESS_USERNAME,
+      passwordLength: cfg.WORDPRESS_APP_PASSWORD.length,
+      response: apiBody.slice(0, 500),
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }
 });
 
