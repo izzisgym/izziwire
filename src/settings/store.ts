@@ -24,7 +24,10 @@ export type SettingKey =
   | 'WP_MAX_WORDS'
   | 'SEARCH_INSTRUCTIONS'
   | 'SEARCH_MAX_RESULTS'
-  | 'SEARCH_RECENCY_DAYS';
+  | 'SEARCH_RECENCY_DAYS'
+  | 'SEARCH_LANG_EN'
+  | 'SEARCH_LANG_ZH'
+  | 'SEARCH_LANG_JA';
 
 type SettingsMap = {
   SCRAPE_INTERVAL_HOURS: number;
@@ -48,6 +51,9 @@ type SettingsMap = {
   SEARCH_INSTRUCTIONS: string;
   SEARCH_MAX_RESULTS: number;
   SEARCH_RECENCY_DAYS: number;
+  SEARCH_LANG_EN: boolean;
+  SEARCH_LANG_ZH: boolean;
+  SEARCH_LANG_JA: boolean;
 };
 
 const cache: Partial<SettingsMap> = {};

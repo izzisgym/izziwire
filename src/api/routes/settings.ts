@@ -28,6 +28,9 @@ const settingsSchema = z.object({
   SEARCH_INSTRUCTIONS: z.string().optional(),
   SEARCH_MAX_RESULTS: z.number().int().positive().max(20).optional(),
   SEARCH_RECENCY_DAYS: z.number().int().positive().max(30).optional(),
+  SEARCH_LANG_EN: z.boolean().optional(),
+  SEARCH_LANG_ZH: z.boolean().optional(),
+  SEARCH_LANG_JA: z.boolean().optional(),
 });
 
 function defaultsFromConfig() {
@@ -56,6 +59,9 @@ function defaultsFromConfig() {
       'Only select articles that contain meaningful, actionable news: new set announcements, card reveals, ban list updates, tournament results, meta shifts, or official rule changes. Skip generic listicles, opinion pieces with no new info, and articles older than a week.',
     SEARCH_MAX_RESULTS: 10,
     SEARCH_RECENCY_DAYS: 7,
+    SEARCH_LANG_EN: true,
+    SEARCH_LANG_ZH: true,
+    SEARCH_LANG_JA: true,
   };
 }
 

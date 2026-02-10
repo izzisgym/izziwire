@@ -27,6 +27,9 @@ interface SettingsPayload {
   SEARCH_INSTRUCTIONS: string;
   SEARCH_MAX_RESULTS: number;
   SEARCH_RECENCY_DAYS: number;
+  SEARCH_LANG_EN: boolean;
+  SEARCH_LANG_ZH: boolean;
+  SEARCH_LANG_JA: boolean;
 }
 
 export default function Settings() {
@@ -291,6 +294,36 @@ export default function Settings() {
                 />
                 Publishing enabled
               </label>
+
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Search Language Agents
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.SEARCH_LANG_EN}
+                    onChange={(e) => setForm({ ...form, SEARCH_LANG_EN: e.target.checked })}
+                  />
+                  Search English sources
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.SEARCH_LANG_ZH}
+                    onChange={(e) => setForm({ ...form, SEARCH_LANG_ZH: e.target.checked })}
+                  />
+                  Search Chinese sources (中文)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.SEARCH_LANG_JA}
+                    onChange={(e) => setForm({ ...form, SEARCH_LANG_JA: e.target.checked })}
+                  />
+                  Search Japanese sources (日本語)
+                </label>
+              </div>
               <label>
                 Pokemon topics (one per line)
                 <textarea

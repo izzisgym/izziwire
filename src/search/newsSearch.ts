@@ -5,6 +5,13 @@ import { getSetting } from '../settings/store.js';
 import Anthropic from '@anthropic-ai/sdk';
 
 type Game = 'pokemon' | 'onepiece' | 'mtg';
+type SearchLang = 'en' | 'zh' | 'ja';
+
+const LANG_LABELS: Record<SearchLang, string> = {
+  en: 'English',
+  zh: 'Chinese',
+  ja: 'Japanese',
+};
 
 interface SearchResult {
   title: string;
@@ -17,8 +24,8 @@ interface SearchResult {
 
 const prisma = getPrisma();
 
-async function ensureSearchSource(game: Game) {
-  const name = `Open Web Search (${game})`;
+async function ensureSearchSource(game: Game, lang: SearchLang) {
+  const name = `Open Web Search (${game}) [${LANG_LABELS[lang]}]`;
   const existing = await prisma.newsSource.findFirst({
     where: { name, game },
   });
@@ -28,11 +35,43 @@ async function ensureSearchSource(game: Game) {
       name,
       game,
       sourceType: 'search',
-      url: 'open-web',
+      url: `open-web-${lang}`,
       isActive: true,
       priority: 5,
     },
   });
+}
+
+/**
+ * Translate a search query into the target language using Claude.
+ * English queries pass through unchanged.
+ */
+async function translateQueryForLanguage(
+  topic: string,
+  game: string,
+  lang: SearchLang
+): Promise<string> {
+  if (lang === 'en') return topic;
+
+  const cfg = getConfig();
+  if (!cfg.ANTHROPIC_API_KEY) return topic;
+
+  const langName = LANG_LABELS[lang];
+  const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
+
+  const msg = await anthropic.messages.create({
+    model: cfg.DEFAULT_AI_MODEL,
+    max_tokens: 200,
+    system: `You are a translator. Translate the given search query into ${langName}. The query is about ${game} Trading Card Games. Return ONLY the translated query text, nothing else.`,
+    messages: [{ role: 'user', content: topic }],
+  });
+
+  const text =
+    msg.content.find((c) => c.type === 'text')?.type === 'text'
+      ? (msg.content.find((c) => c.type === 'text') as { type: 'text'; text: string }).text
+      : '';
+
+  return text.trim() || topic;
 }
 
 async function tavilySearch(query: string, maxResults: number, recencyDays: number): Promise<SearchResult[]> {
@@ -83,7 +122,8 @@ async function tavilySearch(query: string, maxResults: number, recencyDays: numb
 async function analyzeAndSummarize(
   results: SearchResult[],
   game: string,
-  searchInstructions: string
+  searchInstructions: string,
+  lang: SearchLang = 'en'
 ): Promise<Array<{ title: string; url: string; summary: string; imageUrl?: string | null; publishedAt?: Date | null }>> {
   const cfg = getConfig();
   if (!cfg.ANTHROPIC_API_KEY) {
@@ -102,6 +142,10 @@ async function analyzeAndSummarize(
     `[ARTICLE ${i + 1}]\nTitle: ${r.title}\nURL: ${r.url}\nContent: ${r.content.slice(0, 3000)}\n`
   )).join('\n---\n');
 
+  const translationNote = lang !== 'en'
+    ? `\n\nIMPORTANT: The articles below may be in ${LANG_LABELS[lang]}. You MUST translate ALL content (titles and summaries) to English in your output. The final JSON must be entirely in English.`
+    : '';
+
   const system = `You are a news editor for a ${game} Trading Card Game community blog.
 
 SELECTION CRITERIA:
@@ -112,6 +156,7 @@ Your job:
 2. Select ONLY the ones worth writing a full blog post about
 3. For each selected article, write a detailed 3-5 sentence summary capturing the key facts, numbers, dates, and significance
 4. Reject articles that are low-quality, irrelevant, or don't contain real news
+${translationNote}
 
 Output valid JSON only.`;
 
@@ -167,12 +212,21 @@ Respond as JSON:
     });
 }
 
-async function runTopicSearch(topic: string, game: Game, maxResults: number, recencyDays: number, searchInstructions: string): Promise<number> {
-  const source = await ensureSearchSource(game);
-  const results = await tavilySearch(topic, maxResults, recencyDays);
+async function runTopicSearch(
+  topic: string,
+  game: Game,
+  maxResults: number,
+  recencyDays: number,
+  searchInstructions: string,
+  lang: SearchLang = 'en'
+): Promise<number> {
+  // Translate the query for non-English languages
+  const translatedQuery = await translateQueryForLanguage(topic, game, lang);
+  const source = await ensureSearchSource(game, lang);
+  const results = await tavilySearch(translatedQuery, maxResults, recencyDays);
   if (!results.length) return 0;
 
-  const selected = await analyzeAndSummarize(results, game, searchInstructions);
+  const selected = await analyzeAndSummarize(results, game, searchInstructions, lang);
   let created = 0;
 
   for (const r of selected) {
@@ -201,6 +255,32 @@ async function runTopicSearch(topic: string, game: Game, maxResults: number, rec
   return created;
 }
 
+/**
+ * Run a single language agent: search all topics in the given language.
+ */
+async function runLanguageAgent(
+  lang: SearchLang,
+  topics: Array<{ topic: string; game: Game }>,
+  maxResults: number,
+  recencyDays: number,
+  searchInstructions: string
+): Promise<{ created: number; errors: string[] }> {
+  let created = 0;
+  const errors: string[] = [];
+  const langLabel = LANG_LABELS[lang];
+
+  for (const t of topics) {
+    try {
+      created += await runTopicSearch(t.topic, t.game, maxResults, recencyDays, searchInstructions, lang);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      errors.push(`[${langLabel}] ${t.game}: ${t.topic}: ${msg}`);
+    }
+  }
+
+  return { created, errors };
+}
+
 export async function runSearchCycle(): Promise<{ topics: number; created: number; errors: string[] }> {
   const enabled = await getSetting('NEWS_SEARCH_ENABLED', true);
   if (!enabled) {
@@ -214,6 +294,20 @@ export async function runSearchCycle(): Promise<{ topics: number; created: numbe
   const maxResults = await getSetting('SEARCH_MAX_RESULTS', 10);
   const recencyDays = await getSetting('SEARCH_RECENCY_DAYS', 7);
 
+  // Read language settings
+  const langEn = await getSetting('SEARCH_LANG_EN', true);
+  const langZh = await getSetting('SEARCH_LANG_ZH', true);
+  const langJa = await getSetting('SEARCH_LANG_JA', true);
+
+  const enabledLangs: SearchLang[] = [];
+  if (langEn) enabledLangs.push('en');
+  if (langZh) enabledLangs.push('zh');
+  if (langJa) enabledLangs.push('ja');
+
+  if (enabledLangs.length === 0) {
+    return { topics: 0, created: 0, errors: ['All search languages disabled'] };
+  }
+
   const topicsPokemon = await getSetting('NEWS_TOPICS_POKEMON', []);
   const topicsOnepiece = await getSetting('NEWS_TOPICS_ONEPIECE', []);
   const topicsMtg = await getSetting('NEWS_TOPICS_MTG', []);
@@ -224,17 +318,23 @@ export async function runSearchCycle(): Promise<{ topics: number; created: numbe
     ...topicsMtg.map((t) => ({ topic: t, game: 'mtg' as const })),
   ];
 
-  let created = 0;
-  const errors: string[] = [];
-
-  for (const t of topics) {
-    try {
-      created += await runTopicSearch(t.topic, t.game, maxResults, recencyDays, searchInstructions);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${t.game}: ${t.topic}: ${msg}`);
-    }
+  if (topics.length === 0) {
+    return { topics: 0, created: 0, errors: [] };
   }
 
-  return { topics: topics.length, created, errors };
+  // Run all language agents in parallel
+  const agentResults = await Promise.all(
+    enabledLangs.map((lang) =>
+      runLanguageAgent(lang, topics, maxResults, recencyDays, searchInstructions)
+    )
+  );
+
+  let created = 0;
+  const errors: string[] = [];
+  for (const result of agentResults) {
+    created += result.created;
+    errors.push(...result.errors);
+  }
+
+  return { topics: topics.length * enabledLangs.length, created, errors };
 }
