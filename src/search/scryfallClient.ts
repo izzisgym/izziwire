@@ -117,8 +117,8 @@ function mapCard(raw: ScryfallApiResponse): ScryfallCard {
  */
 export async function getRandomCard(query?: string): Promise<ScryfallCard> {
   const params = new URLSearchParams();
-  // Default: paper cards only, exclude tokens/emblems
-  params.set('q', query ?? 'game:paper -t:token -t:emblem');
+  // Default: popular cards only — rare/mythic rarity OR worth $1+, paper only, no tokens
+  params.set('q', query ?? 'game:paper -t:token -t:emblem (r>=rare OR usd>=1)');
 
   const url = `https://api.scryfall.com/cards/random?${params.toString()}`;
   const res = await fetchWithTimeout(url, {
