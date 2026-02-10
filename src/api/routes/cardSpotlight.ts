@@ -12,6 +12,7 @@ const router = Router();
 const prisma = getPrisma();
 
 const MAX_WORDS_PER_P = 80;
+const MAX_WORDS_TOTAL = 150;
 
 /** Split paragraph content into chunks of at most maxWords; return HTML <p> tags. */
 function splitLongParagraphs(html: string, maxWords: number = MAX_WORDS_PER_P): string {
@@ -25,6 +26,19 @@ function splitLongParagraphs(html: string, maxWords: number = MAX_WORDS_PER_P): 
     }
     return chunks.map((c) => `<p>${c}</p>`).join('');
   });
+}
+
+/** Enforce hard word limit: strip HTML to text, truncate to maxWords, rewrap in <p> (max MAX_WORDS_PER_P per <p>). */
+function enforceMaxWordsTotal(html: string, maxWords: number = MAX_WORDS_TOTAL): string {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = text ? text.split(/\s+/).filter(Boolean) : [];
+  if (words.length <= maxWords) return html;
+  const kept = words.slice(0, maxWords);
+  const result: string[] = [];
+  for (let i = 0; i < kept.length; i += MAX_WORDS_PER_P) {
+    result.push('<p>' + kept.slice(i, i + MAX_WORDS_PER_P).join(' ') + '</p>');
+  }
+  return result.join('');
 }
 
 /**
@@ -59,8 +73,8 @@ router.post('/', requireApiKey, async (_req, res) => {
     // 3. Generate the blog post with Claude (minimal prompt + short card context to stay under rate limit)
     const cardContext = formatCardForPromptShort(card);
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
-    const system = `MTG Card Spotlight. Each <p> max 80 words—split longer. Hook, abilities, strategy, artist, set/rarity, price, flavor, verdict. End with one reader question ("Have you used this card?" etc). <h2> + <p> only, 600–1200 words. Output only JSON.`;
-    const user = `Spotlight this card. Each <p> ≤80 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
+    const system = `MTG Card Spotlight. Total length under 150 words. Each <p> max 80 words—split longer. One short hook, one or two key points (ability/strategy or art), one reader question ("Have you used this card?" etc). <h2> + <p> only. Be very brief. Output only JSON.`;
+    const user = `Spotlight this card. Under 150 words total. Each <p> ≤80 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
 
     const messages: { role: 'user'; content: string }[] = [{ role: 'user', content: user }];
     const createBody = {
@@ -111,6 +125,7 @@ router.post('/', requireApiKey, async (_req, res) => {
     const title = content.title ?? `Card Spotlight: ${card.name}`;
     let body = content.body ?? '';
     body = splitLongParagraphs(body);
+    body = enforceMaxWordsTotal(body);
     const tags = Array.isArray(content.tags) ? content.tags : ['mtg', 'card-spotlight'];
     const excerpt = content.excerpt ?? '';
 
