@@ -170,3 +170,18 @@ export function formatCardForPrompt(card: ScryfallCard): string {
 
   return lines.join('\n');
 }
+
+/** Shorter card context for API calls to reduce input tokens. */
+export function formatCardForPromptShort(card: ScryfallCard): string {
+  const parts = [
+    `${card.name} | ${card.typeLine}`,
+    card.manaCost ? card.manaCost : '',
+    card.oracleText || '',
+    `${card.rarity} | ${card.setName} (${card.setCode})`,
+  ];
+  if (card.artist) parts.push(`Artist: ${card.artist}`);
+  if (card.power && card.toughness) parts.push(`${card.power}/${card.toughness}`);
+  if (card.priceUsd) parts.push(`$${card.priceUsd}`);
+  if (card.flavorText) parts.push(`"${card.flavorText}"`);
+  return parts.filter(Boolean).join('\n');
+}

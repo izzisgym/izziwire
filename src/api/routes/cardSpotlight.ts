@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
 import { getConfig } from '../../config.js';
-import { getRandomCard, formatCardForPrompt } from '../../search/scryfallClient.js';
+import { getRandomCard, formatCardForPromptShort } from '../../search/scryfallClient.js';
 import type { ScryfallCard } from '../../search/scryfallClient.js';
 import { isValidImageUrl } from '../../search/imageFinder.js';
 import Anthropic from '@anthropic-ai/sdk';
@@ -56,33 +56,36 @@ router.post('/', requireApiKey, async (_req, res) => {
       if (imageUrl && !(await isValidImageUrl(imageUrl))) imageUrl = null;
     }
 
-    // 3. Generate the blog post with Claude
-    const cardContext = formatCardForPrompt(card);
+    // 3. Generate the blog post with Claude (minimal prompt + short card context to stay under rate limit)
+    const cardContext = formatCardForPromptShort(card);
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
+    const system = `MTG Card Spotlight. Each <p> max 80 words—split longer. Hook, abilities, strategy, artist, set/rarity, price, flavor, verdict. End with one reader question ("Have you used this card?" etc). <h2> + <p> only, 600–1200 words. Output only JSON.`;
+    const user = `Spotlight this card. Each <p> ≤80 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
 
-    const system = `MTG Card Spotlight writer for a TCG site. Audience: casual to competitive players.
-
-HARD RULE — PARAGRAPH LENGTH: Every <p> MUST be 80 words or fewer. Count the words in each paragraph. If any <p> has more than 80 words, split it into multiple <p> tags. No exceptions. Prefer 2–4 short <p> per section rather than one long one.
-
-Content: Hook, abilities, strategy/decks/combos, artist & art, set/rarity, price if notable, flavor/lore, verdict. End with one reader question (e.g. "Have you ever used this card?" / "Do you have this card?").
-
-Style: First sentence = strongest hook. Short sentences. 8th-grade level. One clear CTA. HTML: <h2> sections, <p> only. 600–1200 words total. No <img>.
-
-Process: Before outputting, verify every <p> is ≤80 words; split any that are longer. Output only final JSON.`;
-
-    const user = `Card Spotlight for this MTG card. CRITICAL: each <p> must be 80 words or less — split long paragraphs into multiple <p>.
-
-${cardContext}
-
-JSON:
-{"title":"...","body":"HTML; every <p> max 80 words","tags":["mtg","card-spotlight",...],"excerpt":"1-2 sentence teaser"}`;
-
-    const msg = await anthropic.messages.create({
+    const createOptions = {
       model: cfg.DEFAULT_AI_MODEL,
-      max_tokens: 3000,
+      max_tokens: 2500,
       system,
       messages: [{ role: 'user', content: user }],
-    });
+    } as const;
+
+    let msg: Awaited<ReturnType<Anthropic['messages']['create']>> | undefined;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        msg = await anthropic.messages.create(createOptions);
+        break;
+      } catch (e: unknown) {
+        lastErr = e;
+        const is429 = e && typeof e === 'object' && 'status' in e && (e as { status?: number }).status === 429;
+        if (is429 && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 65_000));
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (!msg) throw lastErr;
 
     const textBlock = msg.content.find((c) => c.type === 'text');
     const rawText = textBlock && textBlock.type === 'text' ? textBlock.text : '';
