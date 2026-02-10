@@ -11,6 +11,22 @@ import Anthropic from '@anthropic-ai/sdk';
 const router = Router();
 const prisma = getPrisma();
 
+const MAX_WORDS_PER_P = 80;
+
+/** Split paragraph content into chunks of at most maxWords; return HTML <p> tags. */
+function splitLongParagraphs(html: string, maxWords: number = MAX_WORDS_PER_P): string {
+  return html.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => {
+    const text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const words = text ? text.split(/\s+/).filter(Boolean) : [];
+    if (words.length <= maxWords) return `<p>${inner}</p>`;
+    const chunks: string[] = [];
+    for (let i = 0; i < words.length; i += maxWords) {
+      chunks.push(words.slice(i, i + maxWords).join(' '));
+    }
+    return chunks.map((c) => `<p>${c}</p>`).join('');
+  });
+}
+
 /**
  * POST /api/card-spotlight
  * Fetches a random MTG card from Scryfall, generates a blog post about it,
@@ -44,47 +60,22 @@ router.post('/', requireApiKey, async (_req, res) => {
     const cardContext = formatCardForPrompt(card);
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
 
-    const system = `You are a passionate Magic: The Gathering expert and blog writer for a TCG community site.
+    const system = `MTG Card Spotlight writer for a TCG site. Audience: casual to competitive players.
 
-You are writing a "Card Spotlight" post about a specific MTG card. Your audience are MTG players ranging from casual to competitive.
+HARD RULE — PARAGRAPH LENGTH: Every <p> MUST be 80 words or fewer. Count the words in each paragraph. If any <p> has more than 80 words, split it into multiple <p> tags. No exceptions. Prefer 2–4 short <p> per section rather than one long one.
 
-CARD SPOTLIGHT GUIDELINES:
-- Open with a hook about the card — what makes it exciting, broken, or unique
-- Cover the card's abilities and what makes it interesting or powerful
-- Discuss strategy: what decks it fits in, key combos, and how to use it effectively
-- Mention the artist and comment on the artwork
-- Include set context and rarity significance
-- If the card has a notable price, mention market value and why
-- If the card has flavor text, discuss the lore
-- End with a verdict: who should play this card and why
-- End every post with an engaging question to the reader. Use one that fits the card, e.g. "Have you ever used this card?", "Do you have this card?", "Have you ever heard of this card?" — or a similar question that invites comments.
+Content: Hook, abilities, strategy/decks/combos, artist & art, set/rarity, price if notable, flavor/lore, verdict. End with one reader question (e.g. "Have you ever used this card?" / "Do you have this card?").
 
-WRITING STYLE (always follow):
-- Lead with the hook. First sentence = the most exciting fact about this card.
-- Paragraph rule: each <p> must be 80 words or less. Short paragraphs with line breaks — a 150-word wall of text feels long, but broken into 2–3 short chunks it reads fast. Never write a single paragraph longer than 80 words.
-- 2–3 sentences per <p> max. Use multiple <p> tags to break up ideas; avoid long blocks.
-- 8th-grade reading level. Simple words, short sentences, easy to scan.
-- One clear call to action (e.g. "grab one before the price climbs").
-- Format as HTML with <h2> for sections and <p> for paragraphs.
-- Keep it between 600 and 1200 words total.
-- Do NOT include <img> tags in the body.
+Style: First sentence = strongest hook. Short sentences. 8th-grade level. One clear CTA. HTML: <h2> sections, <p> only. 600–1200 words total. No <img>.
 
-PROCESS (do this before outputting):
-- Before you output the final JSON, critique your draft 10 times from different angles: (1) Is the hook strong? (2) Is each paragraph under 80 words? (3) Are chunks short with clear line breaks? (4) Is the strategy section useful? (5) Is the verdict clear? (6) Does it end with an engaging question to the reader? (7) Is the reading level simple and scannable? (8) Is the call to action clear? (9) Does the flow hold together? (10) Would a real player find this worth reading? Revise the post after each critique until it is the best possible version. Then output only the final JSON — no critique text, no draft history.
+Process: Before outputting, verify every <p> is ≤80 words; split any that are longer. Output only final JSON.`;
 
-Output valid JSON only, no extra text.`;
-
-    const user = `Write a Card Spotlight blog post about this Magic: The Gathering card:
+    const user = `Card Spotlight for this MTG card. CRITICAL: each <p> must be 80 words or less — split long paragraphs into multiple <p>.
 
 ${cardContext}
 
-Respond as JSON:
-{
-  "title": "a compelling blog post title featuring the card name",
-  "body": "the full blog post as HTML (600-1200 words total; each <p> 80 words or less, short chunks; end with an engaging question to the reader, e.g. Have you ever used this card? / Do you have this card? / Have you ever heard of this card?)",
-  "tags": ["mtg", "card-spotlight", "and", "3-5", "more relevant tags"],
-  "excerpt": "a 1-2 sentence teaser for the post preview"
-}`;
+JSON:
+{"title":"...","body":"HTML; every <p> max 80 words","tags":["mtg","card-spotlight",...],"excerpt":"1-2 sentence teaser"}`;
 
     const msg = await anthropic.messages.create({
       model: cfg.DEFAULT_AI_MODEL,
@@ -112,7 +103,8 @@ Respond as JSON:
     };
 
     const title = content.title ?? `Card Spotlight: ${card.name}`;
-    const body = content.body ?? '';
+    let body = content.body ?? '';
+    body = splitLongParagraphs(body);
     const tags = Array.isArray(content.tags) ? content.tags : ['mtg', 'card-spotlight'];
     const excerpt = content.excerpt ?? '';
 
