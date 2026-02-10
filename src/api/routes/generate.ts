@@ -4,7 +4,6 @@ import { Prisma } from '@prisma/client';
 import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
 import { getConfig } from '../../config.js';
-import { generateImage } from '../../ai/imageGenerator.js';
 import Anthropic from '@anthropic-ai/sdk';
 import type { PostTypeConfig } from './postTypes.js';
 
@@ -16,6 +15,7 @@ const generateSchema = z.object({
   topic: z.string().min(1),
   game: z.enum(['pokemon', 'onepiece', 'mtg']),
   additionalContext: z.string().optional(),
+  imageUrl: z.string().url().optional(),
 });
 
 async function getPostTypes(): Promise<PostTypeConfig[]> {
@@ -31,7 +31,7 @@ router.post('/', requireApiKey, async (req, res) => {
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.message });
     }
-    const { postTypeSlug, topic, game, additionalContext } = parsed.data;
+    const { postTypeSlug, topic, game, additionalContext, imageUrl: providedImageUrl } = parsed.data;
 
     const postTypes = await getPostTypes();
     const postType = postTypes.find((t) => t.slug === postTypeSlug);
@@ -103,14 +103,8 @@ Respond as JSON:
     const tags = Array.isArray(content.tags) ? content.tags : [];
     const excerpt = content.excerpt ?? '';
 
-    let imageUrl: string | null = null;
-    if (postType.generateImage) {
-      try {
-        imageUrl = await generateImage({ topic, game });
-      } catch {
-        // image generation failed, continue without
-      }
-    }
+    // Use user-provided image URL if given
+    const imageUrl = providedImageUrl ?? null;
 
     // Save as pending for review in the Approval Queue
     const pendingPost = await prisma.pendingPost.create({
@@ -119,7 +113,7 @@ Respond as JSON:
         platform: 'wordpress' as any,
         postType: postType.slug,
         generatedImageUrl: imageUrl,
-        imageSource: imageUrl ? 'ideogram' : 'none',
+        imageSource: imageUrl ? 'original' : 'none',
         hashtags: tags,
         status: 'pending',
         generationMetadata: {

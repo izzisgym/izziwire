@@ -30,6 +30,7 @@ export default function ContentCreator() {
   const [game, setGame] = useState<'pokemon' | 'onepiece' | 'mtg'>('pokemon');
   const [topic, setTopic] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
 
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<GenerateResult | null>(null);
@@ -71,6 +72,7 @@ export default function ContentCreator() {
           topic: topic.trim(),
           game,
           additionalContext: additionalContext.trim() || undefined,
+          imageUrl: imageUrl.trim() || undefined,
         }),
       });
 
@@ -259,6 +261,28 @@ export default function ContentCreator() {
                     resize: 'vertical',
                   }}
                 />
+              </label>
+              <label style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>
+                Featured image URL (optional)
+                <input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    marginTop: 6,
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    fontSize: 14,
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                  Paste an image URL from the source article. Leave blank for no featured image.
+                </span>
               </label>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
                 Content will be generated and sent to the Approval Queue for your review before publishing.

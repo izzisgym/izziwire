@@ -1,7 +1,6 @@
 import { getPrisma } from '../api/deps.js';
 import { generatePost } from '../ai/contentGenerator.js';
 import { generateWordPressPost } from '../ai/wordpressGenerator.js';
-import { generateImage } from '../ai/imageGenerator.js';
 import type { Platform } from '@prisma/client';
 
 const prisma = getPrisma();
@@ -12,7 +11,7 @@ export async function runPipelineForArticle(params: {
   postType?: string;
   generateImage?: boolean;
 }): Promise<string> {
-  const { articleId, platform = 'instagram', postType = 'news', generateImage: doImage = false } = params;
+  const { articleId, platform = 'instagram', postType = 'news' } = params;
 
   const article = await prisma.article.findUniqueOrThrow({
     where: { id: articleId },
@@ -42,20 +41,9 @@ export async function runPipelineForArticle(params: {
     });
   }
 
-  let generatedImageUrl: string | null = null;
-  let imageSource: string | null = null;
-  const shouldGenerateImage = (platform as string) === 'wordpress' ? true : doImage;
-  if (shouldGenerateImage) {
-    try {
-      generatedImageUrl = await generateImage({
-        topic: article.title,
-        game: article.game,
-      });
-      imageSource = 'dalle';
-    } catch {
-      imageSource = 'none';
-    }
-  }
+  // Use the image from the scraped article source instead of generating one
+  const generatedImageUrl = article.imageUrl ?? null;
+  const imageSource = article.imageUrl ? 'original' : 'none';
 
   const post = await prisma.pendingPost.create({
     data: {
