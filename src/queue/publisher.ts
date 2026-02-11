@@ -39,10 +39,10 @@ export async function runPublishCycle(): Promise<{ published: number; errors: st
             where: { pendingPostId: post.id, platform: 'wordpress' },
           });
           if (!already) {
-            const meta = (post.generationMetadata ?? {}) as { wpTitle?: string; wpTags?: string[] };
+            const meta = (post.generationMetadata ?? {}) as { wpTitle?: string; wpTags?: string[]; game?: string };
             const title = meta.wpTitle ?? post.content.slice(0, 80);
             const tags = meta.wpTags ?? post.hashtags ?? [];
-            const game = post.article?.game;
+            const game = meta.game ?? post.article?.game;
             const categoryId =
               game === 'pokemon'
                 ? await getSetting('WP_CATEGORY_POKEMON', 0)

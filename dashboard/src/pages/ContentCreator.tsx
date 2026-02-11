@@ -23,19 +23,15 @@ interface GenerateResult {
 }
 
 interface CardPreview {
+  game: string;
   name: string;
-  typeLine: string;
-  manaCost: string | null;
-  oracleText: string | null;
-  power: string | null;
-  toughness: string | null;
-  rarity: string;
   setName: string;
+  setCode?: string;
+  rarity: string;
   artist: string | null;
+  text: string | null;
+  priceUsd?: string | null;
   imageUrl: string | null;
-  artCropUrl: string | null;
-  priceUsd: string | null;
-  tcgplayerUrl: string | null;
 }
 
 interface CardSpotlightResult {
@@ -45,12 +41,13 @@ interface CardSpotlightResult {
   excerpt?: string;
   tags?: string[];
   hasImage?: boolean;
+  game?: string;
   card?: {
     name: string;
     set: string;
     rarity: string;
     artist: string | null;
-    priceUsd: string | null;
+    priceUsd?: string | null;
     imageUrl: string | null;
   };
   status?: string;
@@ -71,6 +68,7 @@ export default function ContentCreator() {
   const [error, setError] = useState<string | null>(null);
 
   // Card Spotlight state
+  const [cardSpotlightGame, setCardSpotlightGame] = useState<'mtg' | 'pokemon' | 'onepiece' | 'lorcana'>('mtg');
   const [cardPreview, setCardPreview] = useState<CardPreview | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardGenerating, setCardGenerating] = useState(false);
@@ -134,7 +132,7 @@ export default function ContentCreator() {
     setCardError(null);
     setCardResult(null);
     try {
-      const res = await fetch('/api/card-spotlight/preview', {
+      const res = await fetch(`/api/card-spotlight/preview?game=${cardSpotlightGame}`, {
         headers: { ...(apiKey ? { 'x-api-key': apiKey } : {}) },
       });
       if (!res.ok) {
@@ -162,6 +160,7 @@ export default function ContentCreator() {
           'Content-Type': 'application/json',
           ...(apiKey ? { 'x-api-key': apiKey } : {}),
         },
+        body: JSON.stringify({ game: cardSpotlightGame }),
       });
       const data = (await res.json()) as CardSpotlightResult;
       if (!res.ok) {
@@ -190,7 +189,7 @@ export default function ContentCreator() {
         <p className="page-subtitle">Generate blog posts for your TCG community</p>
       </div>
 
-      {/* MTG Random Card Spotlight */}
+      {/* Random Card Spotlight (MTG, Pokemon, One Piece, Lorcana) */}
       <div className="card">
         <h2 style={{ fontSize: 18, marginBottom: 16, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -198,11 +197,37 @@ export default function ContentCreator() {
             <path d="M12 8v8" />
             <path d="M8 12h8" />
           </svg>
-          MTG Random Card Spotlight
+          Random Card Spotlight
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 16, lineHeight: 1.6 }}>
-          Fetch a random Magic: The Gathering card and generate a blog post featuring its art, abilities, strategy tips, artist info, and market price.
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 12, lineHeight: 1.6 }}>
+          Pick a game, fetch a random card, and generate a short spotlight post (under 150 words).
         </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {[
+            { value: 'mtg' as const, label: 'MTG', color: 'var(--game-mtg)' },
+            { value: 'pokemon' as const, label: 'Pokemon', color: 'var(--game-pokemon)' },
+            { value: 'onepiece' as const, label: 'One Piece', color: 'var(--game-onepiece)' },
+            { value: 'lorcana' as const, label: 'Lorcana', color: 'var(--game-lorcana)' },
+          ].map((g) => (
+            <button
+              key={g.value}
+              type="button"
+              onClick={() => { setCardSpotlightGame(g.value); setCardPreview(null); setCardResult(null); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                border: cardSpotlightGame === g.value ? `2px solid ${g.color}` : '1px solid var(--border)',
+                background: cardSpotlightGame === g.value ? g.color : 'var(--bg-secondary)',
+                color: cardSpotlightGame === g.value ? 'white' : 'var(--text-primary)',
+                fontWeight: cardSpotlightGame === g.value ? 600 : 400,
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
 
         {/* Card Preview */}
         {cardPreview && (
@@ -230,15 +255,10 @@ export default function ContentCreator() {
               <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 6, color: 'var(--text-primary)' }}>
                 {cardPreview.name}
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 4 }}>
-                {cardPreview.typeLine}
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
+                {cardPreview.setName}{cardPreview.setCode ? ` (${cardPreview.setCode})` : ''}
               </div>
-              {cardPreview.manaCost && (
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>
-                  Mana: {cardPreview.manaCost}
-                </div>
-              )}
-              {cardPreview.oracleText && (
+              {cardPreview.text && (
                 <div style={{
                   fontSize: 13,
                   color: 'var(--text-secondary)',
@@ -250,28 +270,14 @@ export default function ContentCreator() {
                   fontStyle: 'italic',
                   whiteSpace: 'pre-wrap',
                 }}>
-                  {cardPreview.oracleText}
+                  {cardPreview.text}
                 </div>
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: 'var(--text-muted)' }}>
-                {cardPreview.power && cardPreview.toughness && (
-                  <span>P/T: {cardPreview.power}/{cardPreview.toughness}</span>
-                )}
                 <span style={{ textTransform: 'capitalize' }}>{cardPreview.rarity}</span>
-                <span>{cardPreview.setName}</span>
                 {cardPreview.artist && <span>Art by {cardPreview.artist}</span>}
                 {cardPreview.priceUsd && <span style={{ color: 'var(--accent-success)', fontWeight: 600 }}>${cardPreview.priceUsd}</span>}
               </div>
-              {cardPreview.tcgplayerUrl && (
-                <a
-                  href={cardPreview.tcgplayerUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: 'var(--accent-primary)', marginTop: 8, display: 'inline-block' }}
-                >
-                  View on TCGPlayer
-                </a>
-              )}
             </div>
           </div>
         )}
@@ -365,7 +371,7 @@ export default function ContentCreator() {
               disabled={cardGenerating}
               style={{
                 padding: '10px 24px',
-                background: cardGenerating ? 'var(--bg-hover)' : 'linear-gradient(135deg, var(--game-mtg), #1a1a2e)',
+                background: cardGenerating ? 'var(--bg-hover)' : `linear-gradient(135deg, var(--game-${cardSpotlightGame}), #1a1a2e)`,
                 color: 'white',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',

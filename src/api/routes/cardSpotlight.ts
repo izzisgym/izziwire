@@ -3,10 +3,51 @@ import { Prisma } from '@prisma/client';
 import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
 import { getConfig } from '../../config.js';
-import { getRandomCard, formatCardForPromptShort } from '../../search/scryfallClient.js';
-import type { ScryfallCard } from '../../search/scryfallClient.js';
+import { getRandomCard } from '../../search/scryfallClient.js';
+import { getRandomPokemonCard } from '../../search/pokemonCardClient.js';
+import { getRandomOnePieceCard } from '../../search/onepieceCardClient.js';
+import { getRandomLorcanaCard } from '../../search/lorcanaCardClient.js';
+import type { CardForSpotlight } from '../../search/cardSpotlightTypes.js';
+import { formatCardForSpotlightShort } from '../../search/cardSpotlightTypes.js';
 import { isValidImageUrl } from '../../search/imageFinder.js';
 import Anthropic from '@anthropic-ai/sdk';
+
+const CARD_SPOTLIGHT_GAMES = ['mtg', 'pokemon', 'onepiece', 'lorcana'] as const;
+type CardSpotlightGame = (typeof CARD_SPOTLIGHT_GAMES)[number];
+
+const GAME_LABELS: Record<CardSpotlightGame, string> = {
+  mtg: 'Magic: The Gathering',
+  pokemon: 'Pokemon TCG',
+  onepiece: 'One Piece TCG',
+  lorcana: 'Disney Lorcana',
+};
+
+async function fetchRandomCardForGame(game: CardSpotlightGame): Promise<CardForSpotlight> {
+  switch (game) {
+    case 'mtg': {
+      const mtgCard = await getRandomCard();
+      return {
+        game: 'mtg',
+        name: mtgCard.name,
+        imageUrl: mtgCard.imageUrl ?? mtgCard.artCropUrl,
+        setName: mtgCard.setName,
+        setCode: mtgCard.setCode,
+        rarity: mtgCard.rarity,
+        artist: mtgCard.artist,
+        text: mtgCard.oracleText ?? mtgCard.flavorText,
+        price: mtgCard.priceUsd,
+      };
+    }
+    case 'pokemon':
+      return getRandomPokemonCard();
+    case 'onepiece':
+      return getRandomOnePieceCard();
+    case 'lorcana':
+      return getRandomLorcanaCard();
+    default:
+      return fetchRandomCardForGame('mtg');
+  }
+}
 
 const router = Router();
 const prisma = getPrisma();
@@ -46,39 +87,38 @@ function enforceMaxWordsTotal(html: string, maxWords: number = MAX_WORDS_TOTAL):
 
 /**
  * POST /api/card-spotlight
- * Fetches a random MTG card from Scryfall, generates a blog post about it,
- * and sends it to the Approval Queue.
+ * Body: { game?: 'mtg' | 'pokemon' | 'onepiece' | 'lorcana' }
+ * Fetches a random card for that game, generates a 150-word spotlight, and sends it to the Approval Queue.
  */
-router.post('/', requireApiKey, async (_req, res) => {
+router.post('/', requireApiKey, async (req, res) => {
   try {
     const cfg = getConfig();
     if (!cfg.ANTHROPIC_API_KEY) {
       return res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY' });
     }
 
-    // 1. Fetch a random MTG card from Scryfall
-    let card: ScryfallCard;
+    const game: CardSpotlightGame =
+      CARD_SPOTLIGHT_GAMES.includes(req.body?.game as CardSpotlightGame) ? req.body.game : 'mtg';
+    const gameLabel = GAME_LABELS[game];
+
+    // 1. Fetch a random card for the chosen game
+    let card: CardForSpotlight;
     try {
-      card = await getRandomCard();
+      card = await fetchRandomCardForGame(game);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return res.status(502).json({ error: `Failed to fetch card from Scryfall: ${msg}` });
+      return res.status(502).json({ error: `Failed to fetch card: ${msg}` });
     }
 
-    // 2. Use full card image (not art crop); validate it loads
-    let imageUrl: string | null = card.imageUrl ?? card.artCropUrl;
-    if (imageUrl) {
-      const valid = await isValidImageUrl(imageUrl);
-      if (!valid && card.artCropUrl && card.artCropUrl !== imageUrl)
-        imageUrl = card.artCropUrl;
-      if (imageUrl && !(await isValidImageUrl(imageUrl))) imageUrl = null;
-    }
+    // 2. Validate card image loads
+    let imageUrl: string | null = card.imageUrl;
+    if (imageUrl && !(await isValidImageUrl(imageUrl))) imageUrl = null;
 
-    // 3. Generate the blog post with Claude (minimal prompt + short card context to stay under rate limit)
-    const cardContext = formatCardForPromptShort(card);
+    // 3. Generate the blog post with Claude
+    const cardContext = formatCardForSpotlightShort(card);
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
-    const system = `MTG Card Spotlight. You MUST write 100-150 words total—no more. Structure: (1) One short hook in one <p>. (2) One <p> with one key point—ability or strategy. (3) One <p> ending with a reader question ("Have you used this card?" etc). Use only <h2> and <p>. Count words; stop at 150. Output only JSON.`;
-    const user = `Write a 100-150 word spotlight for this card. Exactly 3 short <p> tags: hook, one key point, then reader question. Do not exceed 150 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
+    const system = `${gameLabel} Card Spotlight. You MUST write 100-150 words total—no more. Structure: (1) One short hook in one <p>. (2) One <p> with one key point—ability or strategy. (3) One <p> ending with a reader question ("Have you used this card?" etc). Use only <h2> and <p>. Count words; stop at 150. Output only JSON.`;
+    const user = `Write a 100-150 word spotlight for this ${gameLabel} card. Exactly 3 short <p> tags: hook, one key point, then reader question. Do not exceed 150 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["${game}","card-spotlight",...],"excerpt":"..."}`;
 
     const messages: { role: 'user'; content: string }[] = [{ role: 'user', content: user }];
     const createBody = {
@@ -126,11 +166,12 @@ router.post('/', requireApiKey, async (_req, res) => {
       excerpt?: string;
     };
 
+    const postTypeSlug = `${game}-card-spotlight`;
     const title = content.title ?? `Card Spotlight: ${card.name}`;
     let body = content.body ?? '';
     body = splitLongParagraphs(body);
     body = enforceMaxWordsTotal(body);
-    const tags = Array.isArray(content.tags) ? content.tags : ['mtg', 'card-spotlight'];
+    const tags = Array.isArray(content.tags) ? content.tags : [game, 'card-spotlight'];
     const excerpt = content.excerpt ?? '';
 
     // 4. Create pending post in Approval Queue
@@ -138,7 +179,7 @@ router.post('/', requireApiKey, async (_req, res) => {
       data: {
         content: body,
         platform: 'wordpress' as any,
-        postType: 'mtg-card-spotlight',
+        postType: postTypeSlug,
         generatedImageUrl: imageUrl,
         imageSource: imageUrl ? 'original' : 'none',
         hashtags: tags,
@@ -147,15 +188,13 @@ router.post('/', requireApiKey, async (_req, res) => {
           wpTitle: title,
           wpTags: tags,
           wpExcerpt: excerpt,
-          postTypeSlug: 'mtg-card-spotlight',
-          game: 'mtg',
+          postTypeSlug,
+          game,
           cardName: card.name,
           cardSet: card.setName,
           cardRarity: card.rarity,
           cardArtist: card.artist,
-          tcgplayerUrl: card.tcgplayerUrl,
-          scryfallUrl: card.scryfallUrl,
-          priceUsd: card.priceUsd,
+          priceUsd: card.price ?? undefined,
         } as unknown as Prisma.InputJsonValue,
       },
     });
@@ -167,12 +206,13 @@ router.post('/', requireApiKey, async (_req, res) => {
       excerpt,
       tags,
       hasImage: !!imageUrl,
+      game,
       card: {
         name: card.name,
         set: card.setName,
         rarity: card.rarity,
         artist: card.artist,
-        priceUsd: card.priceUsd,
+        priceUsd: card.price ?? undefined,
         imageUrl,
       },
       status: 'pending_review',
@@ -184,28 +224,27 @@ router.post('/', requireApiKey, async (_req, res) => {
 
 /**
  * GET /api/card-spotlight/preview
+ * Query: ?game=mtg|pokemon|onepiece|lorcana (default mtg)
  * Fetch a random card without generating a post (for preview/reroll).
  */
-router.get('/preview', requireApiKey, async (_req, res) => {
+router.get('/preview', requireApiKey, async (req, res) => {
   try {
-    const card = await getRandomCard();
+    const game: CardSpotlightGame =
+      CARD_SPOTLIGHT_GAMES.includes(req.query?.game as CardSpotlightGame) ? (req.query.game as CardSpotlightGame) : 'mtg';
+    const card = await fetchRandomCardForGame(game);
     return res.json({
+      game: card.game,
       name: card.name,
-      typeLine: card.typeLine,
-      manaCost: card.manaCost,
-      oracleText: card.oracleText,
-      power: card.power,
-      toughness: card.toughness,
-      rarity: card.rarity,
       setName: card.setName,
+      setCode: card.setCode,
+      rarity: card.rarity,
       artist: card.artist,
+      text: card.text,
+      priceUsd: card.price ?? undefined,
       imageUrl: card.imageUrl,
-      artCropUrl: card.artCropUrl,
-      priceUsd: card.priceUsd,
-      tcgplayerUrl: card.tcgplayerUrl,
     });
   } catch (e) {
-    return res.status(502).json({ error: e instanceof Error ? e.message : 'Scryfall error' });
+    return res.status(502).json({ error: e instanceof Error ? e.message : 'Card API error' });
   }
 });
 

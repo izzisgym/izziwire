@@ -17,6 +17,7 @@
   --game-pokemon: #ffcb05;
   --game-onepiece: #e53e3e;
   --game-mtg: #8b5cf6;
+  --game-lorcana: #0ea5e9;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -258,6 +259,10 @@ a:hover {
 }
 .game-badge.mtg {
   background: var(--game-mtg);
+  color: white;
+}
+.game-badge.lorcana {
+  background: var(--game-lorcana);
   color: white;
 }
 

@@ -121,6 +121,7 @@ enum Game {
   pokemon
   onepiece
   mtg
+  lorcana
 }
 
 enum Platform {
