@@ -22,6 +22,24 @@ const GAME_LABELS: Record<CardSpotlightGame, string> = {
   lorcana: 'Disney Lorcana',
 };
 
+/** Reasons we're spotlighting this card — used to generate titles that explain *why* we're showing it. */
+const SPOTLIGHT_ANGLES = [
+  'Hidden gem — a card more players should know about',
+  'Underrated pick — deserves more hype than it gets',
+  'Community favorite — why players keep coming back to it',
+  'Worth a second look — what makes this card stand out',
+  'A card you might have missed — and why it matters',
+  'Why this card is having a moment right now',
+  'This card quietly does the work — here’s why we’re highlighting it',
+  'Standout from the set — one card we had to feature',
+  'Deserves more attention — what makes it special',
+  'Why we’re still talking about this card',
+] as const;
+
+function pickSpotlightAngle(): (typeof SPOTLIGHT_ANGLES)[number] {
+  return SPOTLIGHT_ANGLES[Math.floor(Math.random() * SPOTLIGHT_ANGLES.length)];
+}
+
 async function fetchRandomCardForGame(game: CardSpotlightGame): Promise<CardForSpotlight> {
   switch (game) {
     case 'mtg': {
@@ -114,11 +132,18 @@ router.post('/', requireApiKey, async (req, res) => {
     let imageUrl: string | null = card.imageUrl;
     if (imageUrl && !(await isValidImageUrl(imageUrl))) imageUrl = null;
 
-    // 3. Generate the blog post with Claude
+    // 3. Generate the blog post with Claude (title must say *why* we're showing this card)
     const cardContext = formatCardForSpotlightShort(card);
+    const angle = pickSpotlightAngle();
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
-    const system = `${gameLabel} Card Spotlight. You MUST write 100-150 words total—no more. Structure: (1) One short hook in one <p>. (2) One <p> with one key point—ability or strategy. (3) One <p> ending with a reader question ("Have you used this card?" etc). Use only <h2> and <p>. Count words; stop at 150. Output only JSON.`;
-    const user = `Write a 100-150 word spotlight for this ${gameLabel} card. Exactly 3 short <p> tags: hook, one key point, then reader question. Do not exceed 150 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["${game}","card-spotlight",...],"excerpt":"..."}`;
+    const system = `${gameLabel} Card Spotlight. You MUST write 100-150 words total—no more. Structure: (1) One short hook in one <p>. (2) One <p> with one key point—ability or strategy. (3) One <p> ending with a reader question ("Have you used this card?" etc). Use only <h2> and <p>. Count words; stop at 150. Output only JSON.
+
+TITLE RULE: The "title" must explain WHY we're showing the reader this card—not a generic label like "Card Spotlight: [Name]". Make it compelling and specific (e.g. "Why [Card Name] Is a Hidden Gem in [Set]" or "This Underrated [Game] Card Deserves More Hype").`;
+    const user = `Write a 100-150 word spotlight for this ${gameLabel} card. Exactly 3 short <p> tags: hook, one key point, then reader question. Do not exceed 150 words.
+
+WHY WE'RE SHOWING THIS CARD (use this to inspire the title): ${angle}
+
+Card:\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["${game}","card-spotlight",...],"excerpt":"..."}`;
 
     const messages: { role: 'user'; content: string }[] = [{ role: 'user', content: user }];
     const createBody = {
@@ -167,7 +192,10 @@ router.post('/', requireApiKey, async (req, res) => {
     };
 
     const postTypeSlug = `${game}-card-spotlight`;
-    const title = content.title ?? `Card Spotlight: ${card.name}`;
+    const title =
+      content.title?.trim() && !/^Card Spotlight:\s*/i.test(content.title.trim())
+        ? content.title.trim()
+        : `${angle.split('—')[0].trim()}: ${card.name}`;
     let body = content.body ?? '';
     body = splitLongParagraphs(body);
     body = enforceMaxWordsTotal(body);

@@ -1,9 +1,18 @@
 import { fetchWithTimeout } from '../lib/fetchWithTimeout.js';
+import { getConfig } from '../config.js';
 import type { CardForSpotlight } from './cardSpotlightTypes.js';
 
 const POKEMON_TCG_API = 'https://api.pokemontcg.io/v2';
 const PAGE_SIZE = 250;
-const TIMEOUT_MS = 25_000;
+const TIMEOUT_MS = 45_000;
+const MAX_PAGE = 80;
+
+function getHeaders(): Record<string, string> {
+  const key = getConfig().POKEMON_TCG_API_KEY;
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (key) headers['X-Api-Key'] = key;
+  return headers;
+}
 
 interface PokemonCardImage {
   small?: string;
@@ -43,34 +52,37 @@ interface PokemonCardsResponse {
   totalCount: number;
 }
 
+async function fetchPage(page: number): Promise<PokemonCardResponse[]> {
+  const res = await fetchWithTimeout(
+    `${POKEMON_TCG_API}/cards?pageSize=${PAGE_SIZE}&page=${page}`,
+    { headers: getHeaders() },
+    TIMEOUT_MS
+  );
+  if (!res.ok) throw new Error(`Pokemon TCG API error: ${res.status}`);
+  const json = (await res.json()) as PokemonCardsResponse;
+  return json.data?.filter((c) => c.images?.large || c.images?.small) ?? [];
+}
+
 export async function getRandomPokemonCard(): Promise<CardForSpotlight> {
+  const page = Math.floor(Math.random() * MAX_PAGE) + 1;
   let list: PokemonCardResponse[] = [];
   try {
-    const first = await fetchWithTimeout(
-      `${POKEMON_TCG_API}/cards?pageSize=1&page=1`,
-      { headers: { Accept: 'application/json' } },
-      TIMEOUT_MS
-    );
-    if (!first.ok) throw new Error(`Pokemon TCG API error: ${first.status}`);
-    const firstJson = (await first.json()) as PokemonCardsResponse;
-    const totalCount = firstJson.totalCount ?? 20_000;
-    const maxPage = Math.max(1, Math.min(80, Math.ceil(totalCount / PAGE_SIZE)));
-    const page = Math.floor(Math.random() * maxPage) + 1;
-    const res = await fetchWithTimeout(
-      `${POKEMON_TCG_API}/cards?pageSize=${PAGE_SIZE}&page=${page}`,
-      { headers: { Accept: 'application/json' } },
-      TIMEOUT_MS
-    );
-    if (!res.ok) throw new Error(`Pokemon TCG API error: ${res.status}`);
-    const json = (await res.json()) as PokemonCardsResponse;
-    list = json.data?.filter((c) => c.images?.large || c.images?.small) ?? [];
+    list = await fetchPage(page);
   } catch (e) {
     const isAbort =
-      (e instanceof Error && (e.name === 'AbortError' || e.message?.includes('aborted')));
+      e instanceof Error && (e.name === 'AbortError' || e.message?.includes('aborted'));
     if (isAbort) {
-      throw new Error('Pokemon TCG API timed out. Try again in a moment.');
+      try {
+        list = await fetchPage(1);
+      } catch {
+        throw new Error('Pokemon TCG API timed out. Try again in a moment.');
+      }
+    } else {
+      throw e;
     }
-    throw e;
+  }
+  if (list.length === 0) {
+    list = await fetchPage(1);
   }
   if (list.length === 0) throw new Error('No Pokemon cards returned');
   const raw = list[Math.floor(Math.random() * list.length)]!;

@@ -1,7 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getConfig } from '../../config.js';
-import { runScrapeCycle } from '../../scraper/scheduler.js';
+import { runScrapeCycle, runFullCycle } from '../../scraper/scheduler.js';
 import { runPublishCycle } from '../../queue/publisher.js';
+import { getPrisma } from '../deps.js';
+import { generatePostFromTopic } from '../../linkedin/generate-post.js';
 
 const router = Router();
 
@@ -38,6 +40,48 @@ router.post('/publish', async (_req, res) => {
   } catch (e) {
     return res.status(500).json({
       error: e instanceof Error ? e.message : 'Unknown error',
+    });
+  }
+});
+
+/** Run the full agent cycle: scrape → search → generate (posts for review). */
+router.post('/full-cycle', async (_req, res) => {
+  try {
+    const result = await runFullCycle();
+    return res.json({
+      ok: true,
+      scraped: result.scraped,
+      searched: result.searched,
+      generated: result.generated,
+      errors: result.errors,
+    });
+  } catch (e) {
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Unknown error',
+    });
+  }
+});
+
+/** LinkedIn Agent: pick a topic, generate a post, save as draft. */
+router.post('/linkedin-generate-draft', async (_req, res) => {
+  try {
+    const prisma = getPrisma();
+    const topics = await prisma.linkedInTopic.findMany({ where: { enabled: true } });
+    if (topics.length === 0) {
+      return res.json({ ok: true, message: 'No LinkedIn topics' });
+    }
+    const topic = topics[Math.floor(Math.random() * topics.length)];
+    const content = await generatePostFromTopic(topic);
+    if (!content) {
+      return res.json({ ok: true, message: 'No content generated' });
+    }
+    const draft = await prisma.linkedInDraft.create({
+      data: { content, topicId: topic.id, status: 'draft' },
+    });
+    return res.json({ ok: true, draftId: draft.id });
+  } catch (e) {
+    return res.status(500).json({
+      error: e instanceof Error ? e.message : 'Generation failed',
     });
   }
 });

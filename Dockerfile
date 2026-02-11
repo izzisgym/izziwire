@@ -11,10 +11,7 @@ COPY package.json ./
 RUN npm install
 
 COPY . .
-RUN npx prisma generate \
-  && npm run build \
-  && npm --prefix dashboard install \
-  && npm --prefix dashboard run build
+RUN npx prisma generate && npm run build
 
 # Runtime
 FROM node:20-bookworm-slim AS runner

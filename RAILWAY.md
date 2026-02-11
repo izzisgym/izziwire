@@ -17,8 +17,9 @@ The repo includes a **Dockerfile** so Railway builds with Docker instead of Nixp
 4. **Dashboard (optional):** **+ New** → **GitHub Repo** → same repo, **Root directory** = `dashboard`.  
    - Railway uses `dashboard/railway.toml` (build + `npm run start`).  
    - Add variable `VITE_API_URL` = `https://<your-api>.up.railway.app` so the UI talks to the API.  
-   - Generate a domain for the dashboard service.
-5. **Cron (optional):** Use Railway Cron or [cron-job.org](https://cron-job.org) to `POST` to `/api/cron/scrape` and `/api/cron/publish` with header `x-cron-secret: <CRON_SECRET>`.
+   - Generate a domain for the dashboard service. The main app also serves the dashboard from the API when built into the repo (see README); the **LinkedIn Agent** is built in: open **/linkedin** in the dashboard to connect LinkedIn, manage topics, drafts, and suggested comments.
+5. **LinkedIn (optional, same API):** On the **API** service, add `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI` = `https://<your-api>.up.railway.app/auth/linkedin/callback`, and `SESSION_SECRET`. Add that redirect URL in your [LinkedIn app](https://www.linkedin.com/developers/apps) under Auth → Redirect URLs.
+6. **Cron (optional):** Use Railway Cron or [cron-job.org](https://cron-job.org) to `POST` to `/api/cron/scrape`, `/api/cron/publish`, and optionally `/api/cron/linkedin-generate-draft` with header `x-cron-secret: <CRON_SECRET>`.
 
 Migrations in `prisma/migrations/` are applied on deploy; ensure they’re committed and pushed.
 
@@ -43,7 +44,7 @@ railway add    # add PostgreSQL from the menu
 railway up     # deploy (uses railway.toml)
 ```
 
-After the first deploy, **Variables** → add Postgres `DATABASE_URL` reference and any vars from `.env.example`. Redeploy if needed. For the dashboard, create a second service in the same project with **Root directory** = `dashboard` and add `VITE_API_URL`.
+After the first deploy, **Variables** → add Postgres `DATABASE_URL` reference and any vars from `.env.example`. Redeploy if needed. For the dashboard as a separate service, create one with **Root directory** = `dashboard` and add `VITE_API_URL`. LinkedIn Agent runs in the same API; add LinkedIn vars and `SESSION_SECRET` to the API service to use the **/linkedin** dashboard page.
 
 ---
 
@@ -86,12 +87,19 @@ If you keep the dashboard on the same repo but different root, the API proxy is 
 
 ---
 
-## 4. Cron (scrape + publish)
+## 4. (Optional) LinkedIn Agent (same API)
+
+The LinkedIn Agent is built into the main API and dashboard. On the **API** service, add variables: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI` = `https://<your-api>.up.railway.app/auth/linkedin/callback`, and `SESSION_SECRET`. In your [LinkedIn app](https://www.linkedin.com/developers/apps), add that redirect URL under Auth → Redirect URLs. Open the dashboard at **/linkedin** (or your dashboard URL + `/linkedin`) to connect LinkedIn, add topics, manage drafts, and use “Draft a comment.” To generate drafts from topics on a schedule, call `POST /api/cron/linkedin-generate-draft` with `x-cron-secret: <CRON_SECRET>`.
+
+---
+
+## 5. Cron (scrape + publish + LinkedIn)
 
 Use **Railway Cron** or any external cron (e.g. cron-job.org) to hit your API:
 
 - **Scrape:** `POST https://<your-api>.up.railway.app/api/cron/scrape`
 - **Publish:** `POST https://<your-api>.up.railway.app/api/cron/publish`
+- **LinkedIn generate draft:** `POST https://<your-api>.up.railway.app/api/cron/linkedin-generate-draft`
 
 Send one of:
 
@@ -107,7 +115,7 @@ Suggested schedule:
 
 ---
 
-## 5. Quick checklist
+## 6. Quick checklist
 
 - [ ] Postgres created and `DATABASE_URL` linked to the API service
 - [ ] Migrations under `prisma/migrations/` committed and pushed

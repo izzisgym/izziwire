@@ -29,6 +29,9 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   NOTIFICATION_EMAIL: z.string().email().optional(),
 
+  // Card APIs (optional; improves rate limits / reliability)
+  POKEMON_TCG_API_KEY: z.string().min(1).optional(),
+
   // Scraping
   SCRAPE_INTERVAL_HOURS: z.coerce.number().int().positive().default(6),
   USER_AGENT: z.string().default('TCGNewsBot/1.0 (contact@example.com)'),
@@ -36,6 +39,12 @@ const envSchema = z.object({
   // Cron & Webhooks
   CRON_SECRET: z.string().optional(),
   META_VERIFY_TOKEN: z.string().optional(),
+
+  // LinkedIn Agent (OAuth, Posts API)
+  LINKEDIN_CLIENT_ID: z.string().optional(),
+  LINKEDIN_CLIENT_SECRET: z.string().optional(),
+  LINKEDIN_REDIRECT_URI: z.string().url().optional().or(z.literal('')),
+  SESSION_SECRET: z.string().optional(),
 
   // Sentry
   SENTRY_DSN: z.string().url().optional().or(z.literal('')),

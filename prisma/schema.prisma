@@ -139,3 +139,39 @@ enum PostStatus {
   published
   failed
 }
+
+// LinkedIn Agent (Posts API, topics, drafts, comment suggest)
+model LinkedInToken {
+  id           String    @id @default(cuid())
+  userId       String    @unique @map("user_id")
+  accessToken  String    @map("access_token")
+  refreshToken String?   @map("refresh_token")
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("linkedin_tokens")
+}
+
+model LinkedInDraft {
+  id          String    @id @default(cuid())
+  content     String    @map("content")
+  topicId     String?   @map("topic_id")
+  status      String    @default("draft") @map("status") // draft | approved | published | rejected
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("linkedin_drafts")
+}
+
+model LinkedInTopic {
+  id        String   @id @default(cuid())
+  name      String   @map("name")
+  keywords  String?  @map("keywords")
+  enabled   Boolean  @default(true) @map("enabled")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("linkedin_topics")
+}

@@ -1,4 +1,6 @@
-# LinkedIn Agent
+# LinkedIn Agent (standalone)
+
+> **The LinkedIn Agent is now built into the main Izziwire app.** Use the main repo’s dashboard at **/linkedin** and the API at `/api/linkedin` and `/auth/linkedin`. See the root [README](../README.md) and [RAILWAY.md](../RAILWAY.md). This folder remains as a standalone reference.
 
 Separate product for LinkedIn automation: OAuth, post creation from topics, approval queue, and “draft a comment” assistant. Uses the official LinkedIn Posts API and `w_member_social` only; no scraping or auto-engagement.
 
@@ -39,39 +41,13 @@ Separate product for LinkedIn automation: OAuth, post creation from topics, appr
 - `POST /api/comment/suggest` – Suggest comment (body: `{ postText }` or `{ postUrl }`)
 - `POST /cron/generate-draft` – Generate one draft from a random topic (optional `CRON_SECRET`)
 
-## Hosted dashboard (deploy anywhere)
+## Deploy (Railway – same project as the rest of the app)
 
-The app can run on any host that supports Node or Docker. Set these when hosting:
+This repo is set up to run the API, dashboard, and LinkedIn Agent **all on Railway** in one project. Deploy the LinkedIn Agent as a separate service with **Root directory** = `linkedin-agent`.
 
-- **LINKEDIN_REDIRECT_URI** – Must be your public callback URL, e.g. `https://your-app.railway.app/auth/linkedin/callback`. Add this exact URL in your [LinkedIn app](https://www.linkedin.com/developers/apps) under Auth → Redirect URLs.
-- **SESSION_SECRET** – A long random string (e.g. `openssl rand -hex 32`) so session cookies are signed.
-- **DATABASE_URL** – For production, prefer Postgres (e.g. Railway/Render add-on). SQLite works for a single instance if the DB file is on a persistent volume.
+See the root **[RAILWAY.md](../RAILWAY.md)** for the full deploy guide. Summary:
 
-### Docker
-
-```bash
-cd linkedin-agent
-docker build -t linkedin-agent .
-docker run -p 3001:3001 \
-  -e PORT=3001 \
-  -e SESSION_SECRET="your-secret" \
-  -e LINKEDIN_CLIENT_ID="..." \
-  -e LINKEDIN_CLIENT_SECRET="..." \
-  -e LINKEDIN_REDIRECT_URI="https://your-domain.com/auth/linkedin/callback" \
-  -e ANTHROPIC_API_KEY="..." \
-  -v linkedin-data:/app/data \
-  linkedin-agent
-```
-
-Then open **https://your-domain.com** (use a reverse proxy or your host’s HTTPS).
-
-### Railway / Render / Fly.io
-
-1. Connect the `linkedin-agent` folder (or repo) to the platform.
-2. Set **root directory** to `linkedin-agent` if the repo contains other projects.
-3. Add env vars: `PORT`, `SESSION_SECRET`, `LINKEDIN_*`, `ANTHROPIC_API_KEY`, and optionally `DATABASE_URL` (Postgres) or use SQLite with a persistent disk if the host supports it.
-4. **Build:** `npm install && npx prisma generate && npm run build`
-5. **Start:** `node dist/index.js`
-6. Set **LINKEDIN_REDIRECT_URI** to your app URL + `/auth/linkedin/callback` and add that URL in the LinkedIn developer console.
-
-After deploy, open the dashboard at your app’s URL (e.g. `https://linkedin-agent.up.railway.app`).
+1. In your Railway project: **+ New** → **GitHub Repo** → same repo, **Root directory** = `linkedin-agent`.
+2. Add **Variables:** `DATABASE_URL` (reference a Postgres; use a dedicated DB or a second database in the same Postgres), `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI` = `https://<this-service>.up.railway.app/auth/linkedin/callback`, `SESSION_SECRET`, `ANTHROPIC_API_KEY`.
+3. In the [LinkedIn app](https://www.linkedin.com/developers/apps), add that redirect URL under Auth → Redirect URLs.
+4. Generate a domain for the service. The dashboard is at that URL.

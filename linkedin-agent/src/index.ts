@@ -30,6 +30,8 @@ app.use(
   })
 );
 
+app.get("/health", (req, res) => res.status(200).send("ok"));
+
 app.use("/auth", authRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/topics", topicsRouter);
