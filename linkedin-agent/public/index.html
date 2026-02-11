@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LinkedIn Agent</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 1rem; }
+    a { color: #0a66c2; }
+    section { margin: 1.5rem 0; }
+    .status { padding: 0.5rem; border-radius: 6px; margin-bottom: 1rem; }
+    .status.connected { background: #e3f2fd; }
+    .status.disconnected { background: #ffebee; }
+    button, .btn { display: inline-block; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #0a66c2; background: #0a66c2; color: #fff; cursor: pointer; text-decoration: none; font-size: 1rem; }
+    button:hover, .btn:hover { background: #004182; }
+    button.secondary, .btn.secondary { background: #fff; color: #0a66c2; }
+    textarea { width: 100%; min-height: 120px; padding: 0.5rem; font-size: 1rem; }
+    input[type="text"] { width: 100%; padding: 0.5rem; font-size: 1rem; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 0.5rem 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .comment-box { background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>LinkedIn Agent</h1>
+  <div id="status" class="status"></div>
+
+  <section>
+    <h2>Connect LinkedIn</h2>
+    <p>Authorize the app to post on your behalf (Posts API, w_member_social).</p>
+    <a id="connectBtn" href="/auth/linkedin" class="btn">Connect LinkedIn</a>
+  </section>
+
+  <section>
+    <h2>Post now (manual)</h2>
+    <p>Publish a text-only post directly.</p>
+    <textarea id="postCommentary" placeholder="Write your post..."></textarea>
+    <br><br>
+    <button id="publishBtn">Publish</button>
+  </section>
+
+  <section>
+    <h2>Topics</h2>
+    <p>Add topics; the scheduler will generate drafts from them.</p>
+    <input type="text" id="topicName" placeholder="Topic name" />
+    <input type="text" id="topicKeywords" placeholder="Optional keywords (comma-separated)" />
+    <button id="addTopicBtn">Add topic</button>
+    <ul id="topicList"></ul>
+  </section>
+
+  <section>
+    <h2>Drafts (approval queue)</h2>
+    <p>Approve a draft to publish it to LinkedIn.</p>
+    <ul id="draftList"></ul>
+  </section>
+
+  <section>
+    <h2>Draft a comment</h2>
+    <p>Paste a post (or URL). Get a suggested comment to copy and post manually on LinkedIn.</p>
+    <textarea id="commentPostText" placeholder="Paste post text or URL..."></textarea>
+    <br><br>
+    <button id="suggestCommentBtn">Suggest comment</button>
+    <div id="suggestedComment" class="comment-box" style="display:none;"></div>
+  </section>
+
+  <script>
+    const api = (path, opts = {}) => fetch(path, { ...opts, headers: { "Content-Type": "application/json", ...opts.headers } });
+
+    async function refreshStatus() {
+      const r = await api("/api/status");
+      const d = await r.json();
+      const el = document.getElementById("status");
+      el.textContent = d.linkedInConnected ? "LinkedIn connected." : "LinkedIn not connected.";
+      el.className = "status " + (d.linkedInConnected ? "connected" : "disconnected");
+      document.getElementById("connectBtn").textContent = d.linkedInConnected ? "Reconnect LinkedIn" : "Connect LinkedIn";
+    }
+
+    document.getElementById("publishBtn").addEventListener("click", async () => {
+      const text = document.getElementById("postCommentary").value.trim();
+      if (!text) return;
+      const r = await api("/api/posts", { method: "POST", body: JSON.stringify({ commentary: text }) });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        document.getElementById("postCommentary").value = "";
+        alert("Published.");
+      } else alert(data.error || "Publish failed");
+    });
+
+    async function loadTopics() {
+      const r = await api("/api/topics");
+      const list = await r.json();
+      const ul = document.getElementById("topicList");
+      ul.innerHTML = list.map((t) =>
+        `<li>${t.name} ${t.keywords ? `(${t.keywords})` : ""} <button class="secondary" data-id="${t.id}" data-delete>Delete</button></li>`
+      ).join("");
+      ul.querySelectorAll("[data-delete]").forEach((b) => b.addEventListener("click", async () => {
+        await api("/api/topics/" + b.dataset.id, { method: "DELETE" });
+        loadTopics();
+      }));
+    }
+
+    document.getElementById("addTopicBtn").addEventListener("click", async () => {
+      const name = document.getElementById("topicName").value.trim();
+      if (!name) return;
+      const keywords = document.getElementById("topicKeywords").value.trim() || undefined;
+      await api("/api/topics", { method: "POST", body: JSON.stringify({ name, keywords }) });
+      document.getElementById("topicName").value = "";
+      document.getElementById("topicKeywords").value = "";
+      loadTopics();
+    });
+
+    async function loadDrafts() {
+      const r = await api("/api/drafts");
+      const list = await r.json();
+      const ul = document.getElementById("draftList");
+      ul.innerHTML = list.map((d) =>
+        `<li><div>${d.content.slice(0, 120)}${d.content.length > 120 ? "…" : ""}</div> ${d.status === "draft" ? `<button data-id="${d.id}" data-approve>Approve & Publish</button>` : `<span>${d.status}</span>`}</li>`
+      ).join("");
+      ul.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", async () => {
+        const id = b.dataset.id;
+        const res = await api("/api/drafts/" + id + "/approve", { method: "POST" });
+        if (res.ok) loadDrafts();
+        else alert((await res.json()).error || "Failed");
+      }));
+    }
+
+    document.getElementById("suggestCommentBtn").addEventListener("click", async () => {
+      const postText = document.getElementById("commentPostText").value.trim();
+      if (!postText) return;
+      const body = postText.startsWith("http") ? { postUrl: postText } : { postText };
+      const r = await api("/api/comment/suggest", { method: "POST", body: JSON.stringify(body) });
+      const data = await r.json();
+      const box = document.getElementById("suggestedComment");
+      if (r.ok) {
+        box.textContent = data.suggestedComment;
+        box.style.display = "block";
+      } else {
+        box.textContent = data.error || "Failed";
+        box.style.display = "block";
+      }
+    });
+
+    refreshStatus();
+    loadTopics();
+    loadDrafts();
+    if (new URLSearchParams(location.search).get("connected") === "1") refreshStatus();
+  </script>
+</body>
+</html>
