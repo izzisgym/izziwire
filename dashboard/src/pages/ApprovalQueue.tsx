@@ -92,7 +92,7 @@ export default function ApprovalQueue() {
   const handlePublish = async (id: string) => {
     setActionStatus(null);
     try {
-      setActionStatus('Publishing to WordPress...');
+      setActionStatus('Publishing...');
       const res = await fetch(`${API_BASE}/posts/${id}/publish`, {
         method: 'POST',
         headers: headers(),
@@ -100,8 +100,17 @@ export default function ApprovalQueue() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? res.statusText);
-      const link = data.link ? ` — ${data.link}` : '';
-      setActionStatus(`Published to WordPress as draft #${data.wpPostId}${link}`);
+      const parts: string[] = [];
+      if (data.wordpress) parts.push(`WordPress #${data.wordpress.id}${data.wordpress.link ? ` — ${data.wordpress.link}` : ''}`);
+      if (data.facebook) parts.push('Facebook');
+      if (data.instagram) parts.push('Instagram');
+      const msg = parts.length
+        ? `Published to ${parts.join(', ')}`
+        : data.alreadyPublished
+          ? 'Already published to all selected platforms'
+          : 'Published (no new platforms)';
+      if (data.errors?.length) setActionStatus(`${msg}. Warnings: ${data.errors.join('; ')}`);
+      else setActionStatus(msg);
       await fetchPending();
     } catch (e) {
       setActionStatus(`Publish failed: ${e instanceof Error ? e.message : 'error'}`);

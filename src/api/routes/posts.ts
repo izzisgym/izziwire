@@ -5,8 +5,7 @@ import { requireApiKey } from '../auth.js';
 import { getPrisma } from '../deps.js';
 import { getConfig } from '../../config.js';
 import { fetchWithTimeout } from '../../lib/fetchWithTimeout.js';
-import { publishWordPressDraft } from '../../publish/wordpress.js';
-import { getSetting } from '../../settings/store.js';
+import { publishPostToPlatforms } from '../../queue/publisher.js';
 
 const router = Router();
 
@@ -142,7 +141,7 @@ router.post('/:id/schedule', requireApiKey, async (req, res) => {
   }
 });
 
-// Publish an approved post to WordPress
+// Publish an approved post to WordPress, Facebook, and/or Instagram (by post.platform)
 router.post('/:id/publish', requireApiKey, async (req, res) => {
   try {
     const postId = getParamId(req.params.id);
@@ -154,58 +153,41 @@ router.post('/:id/publish', requireApiKey, async (req, res) => {
       include: { article: true },
     });
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (post.status !== 'approved' && post.status !== 'pending') {
+    if (post.status !== 'approved' && post.status !== 'scheduled' && post.status !== 'pending') {
       return res.status(400).json({ error: `Cannot publish post with status "${post.status}"` });
     }
 
-    const meta = (post.generationMetadata ?? {}) as {
-      wpTitle?: string;
-      wpTags?: string[];
-      game?: string;
-    };
-    const title = meta.wpTitle ?? post.content.slice(0, 80);
-    const tags = meta.wpTags ?? post.hashtags ?? [];
-    const game = meta.game ?? post.article?.game;
-
-    const categoryId =
-      game === 'pokemon'
-        ? await getSetting('WP_CATEGORY_POKEMON', 0)
-        : game === 'onepiece'
-          ? await getSetting('WP_CATEGORY_ONEPIECE', 0)
-          : await getSetting('WP_CATEGORY_MTG', 0);
-
-    let wpResult: { id: number; link?: string };
-    try {
-      wpResult = await publishWordPressDraft({
-        title,
-        body: post.content,
-        tags,
-        categoryId,
-        featuredImageUrl: post.generatedImageUrl ?? null,
-      });
-    } catch (wpErr) {
-      const wpMsg = wpErr instanceof Error ? wpErr.message : 'Unknown WordPress error';
-      return res.status(500).json({ error: `WordPress publish failed: ${wpMsg}` });
-    }
+    const result = await publishPostToPlatforms(post);
+    const anySuccess = !!(result.wordpress || result.facebook || result.instagram);
+    const alreadyAllPublished =
+      !anySuccess &&
+      result.errors.length === 0 &&
+      (await (async () => {
+        const targets: ('wordpress' | 'facebook' | 'instagram')[] = [];
+        if ((post.platform as string) === 'wordpress') targets.push('wordpress');
+        if (post.platform === 'facebook' || post.platform === 'both') targets.push('facebook');
+        if (post.platform === 'instagram' || post.platform === 'both') targets.push('instagram');
+        const existing = await prisma.publishedPost.findMany({
+          where: { pendingPostId: postId, platform: { in: targets } },
+        });
+        return existing.length >= targets.length;
+      })());
 
     await prisma.pendingPost.update({
       where: { id: postId },
-      data: { status: 'published' },
-    });
-
-    await prisma.publishedPost.create({
       data: {
-        pendingPostId: postId,
-        platform: 'wordpress',
-        platformPostId: String(wpResult.id),
-        postUrl: wpResult.link ?? undefined,
+        status: anySuccess || alreadyAllPublished ? 'published' : 'failed',
+        ...(result.errors.length ? { reviewerNotes: result.errors.join('; ') } : {}),
       },
     });
 
     return res.json({
-      ok: true,
-      wpPostId: wpResult.id,
-      link: wpResult.link,
+      ok: anySuccess || alreadyAllPublished,
+      wordpress: result.wordpress,
+      facebook: result.facebook,
+      instagram: result.instagram,
+      alreadyPublished: alreadyAllPublished,
+      errors: result.errors.length ? result.errors : undefined,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Unknown error';
