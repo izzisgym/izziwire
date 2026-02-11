@@ -173,6 +173,53 @@ router.patch('/drafts/:id', async (req, res) => {
   res.json(draft);
 });
 
+// Generate a post that agrees or disagrees with pasted content
+const generateResponseSchema = z.object({
+  postText: z.string().min(1).max(10000),
+  stance: z.enum(['agree', 'disagree']),
+});
+
+router.post('/generate-response', async (req, res) => {
+  const parsed = generateResponseSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+    return;
+  }
+
+  const cfg = getConfig();
+  if (!cfg.ANTHROPIC_API_KEY) {
+    res.status(503).json({ error: 'AI not configured (ANTHROPIC_API_KEY)' });
+    return;
+  }
+
+  const { postText, stance } = parsed.data;
+  const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
+  const stanceInstruction =
+    stance === 'agree'
+      ? 'Write a short LinkedIn post that agrees with the ideas below. Add your own angle or example; be genuine and professional.'
+      : 'Write a short LinkedIn post that respectfully disagrees or offers a different perspective. Be constructive and professional, not combative.';
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: cfg.DEFAULT_AI_MODEL,
+      max_tokens: 600,
+      messages: [
+        {
+          role: 'user',
+          content: `You are writing a LinkedIn post for the user. ${stanceInstruction}\n\nOutput only the post text (no "Here's my take" or preamble). Keep it under 200 words, suitable for LinkedIn.\n\n---\nPost to respond to:\n${postText}`,
+        },
+      ],
+    });
+
+    const block = msg.content.find((b) => b.type === 'text');
+    const content = block && block.type === 'text' ? block.text.trim() : '';
+    res.json({ content });
+  } catch (e) {
+    console.error('LinkedIn generate-response error', e);
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Generation failed' });
+  }
+});
+
 // Suggest comment
 const commentBodySchema = z
   .object({

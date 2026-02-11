@@ -27,6 +27,9 @@ export default function LinkedIn() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [suggestedComment, setSuggestedComment] = useState('');
+  const [sourcePostText, setSourcePostText] = useState('');
+  const [agreeDisagree, setAgreeDisagree] = useState<'agree' | 'disagree'>('agree');
+  const [generatedPost, setGeneratedPost] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,6 +155,63 @@ export default function LinkedIn() {
     }
   };
 
+  const generateResponsePost = async () => {
+    if (!sourcePostText.trim()) return;
+    setLoading('generate-response');
+    setError(null);
+    setGeneratedPost('');
+    try {
+      const res = await fetch(`${API}/generate-response`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postText: sourcePostText.trim(), stance: agreeDisagree }),
+      });
+      const data = await res.json();
+      if (res.ok) setGeneratedPost(data.content ?? '');
+      else setError(data.error || 'Generation failed');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const publishGeneratedPost = async () => {
+    if (!generatedPost.trim()) return;
+    setLoading('publish-generated');
+    setError(null);
+    try {
+      const res = await fetch(`${API}/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentary: generatedPost.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setGeneratedPost('');
+        setSourcePostText('');
+      } else setError(data.error || 'Publish failed');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const saveGeneratedAsDraft = async () => {
+    if (!generatedPost.trim()) return;
+    setLoading('draft-generated');
+    setError(null);
+    try {
+      await fetch(`${API}/drafts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: generatedPost.trim() }),
+      });
+      setGeneratedPost('');
+      setSourcePostText('');
+      loadDrafts();
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="page-content">
       <div className="page-header">
@@ -208,6 +268,118 @@ export default function LinkedIn() {
         >
           {loading === 'publish' ? 'Publishing…' : 'Publish'}
         </button>
+      </section>
+
+      <section className="card" style={{ marginBottom: 24 }}>
+        <h2 style={{ marginBottom: 8 }}>Create a post from someone else&apos;s</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: 12 }}>
+          Paste a post, choose agree or disagree, and generate your take. Edit if you like, then post or save as draft.
+        </p>
+        <textarea
+          value={sourcePostText}
+          onChange={(e) => setSourcePostText(e.target.value)}
+          placeholder="Paste the post you want to respond to..."
+          rows={4}
+          style={{
+            width: '100%',
+            padding: 12,
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border)',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            marginBottom: 12,
+            resize: 'vertical',
+          }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Your stance:</span>
+          <div
+            style={{
+              display: 'inline-flex',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setAgreeDisagree('agree')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                background: agreeDisagree === 'agree' ? 'var(--accent-success)' : 'var(--bg-secondary)',
+                color: agreeDisagree === 'agree' ? 'white' : 'var(--text-primary)',
+                cursor: 'pointer',
+                fontWeight: agreeDisagree === 'agree' ? 600 : 400,
+              }}
+            >
+              Agree
+            </button>
+            <button
+              type="button"
+              onClick={() => setAgreeDisagree('disagree')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                background: agreeDisagree === 'disagree' ? 'var(--accent-danger)' : 'var(--bg-secondary)',
+                color: agreeDisagree === 'disagree' ? 'white' : 'var(--text-primary)',
+                cursor: 'pointer',
+                fontWeight: agreeDisagree === 'disagree' ? 600 : 400,
+              }}
+            >
+              Disagree
+            </button>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={generateResponsePost}
+            disabled={!sourcePostText.trim() || loading !== null}
+          >
+            {loading === 'generate-response' ? 'Generating…' : 'Generate my take'}
+          </button>
+        </div>
+        {generatedPost && (
+          <>
+            <label style={{ display: 'block', marginBottom: 6, color: 'var(--text-secondary)', fontSize: 14 }}>
+              Your post (edit if you like)
+            </label>
+            <textarea
+              value={generatedPost}
+              onChange={(e) => setGeneratedPost(e.target.value)}
+              rows={5}
+              style={{
+                width: '100%',
+                padding: 12,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-primary)',
+                marginBottom: 12,
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={publishGeneratedPost}
+                disabled={loading !== null}
+              >
+                {loading === 'publish-generated' ? 'Publishing…' : 'Post now'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ background: 'var(--bg-hover)', color: 'var(--text-primary)' }}
+                onClick={saveGeneratedAsDraft}
+                disabled={loading !== null}
+              >
+                {loading === 'draft-generated' ? 'Saving…' : 'Save as draft'}
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="card" style={{ marginBottom: 24 }}>
