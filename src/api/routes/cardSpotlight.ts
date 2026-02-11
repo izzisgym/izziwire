@@ -28,15 +28,18 @@ function splitLongParagraphs(html: string, maxWords: number = MAX_WORDS_PER_P): 
   });
 }
 
-/** Enforce hard word limit: strip HTML to text, truncate to maxWords, rewrap in <p> (max MAX_WORDS_PER_P per <p>). */
+/** Safety only: if over maxWords, truncate at last sentence boundary within first maxWords so it doesn't cut mid-sentence. */
 function enforceMaxWordsTotal(html: string, maxWords: number = MAX_WORDS_TOTAL): string {
   const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   const words = text ? text.split(/\s+/).filter(Boolean) : [];
   if (words.length <= maxWords) return html;
-  const kept = words.slice(0, maxWords);
+  const withinLimit = words.slice(0, maxWords).join(' ');
+  const lastEnd = Math.max(withinLimit.lastIndexOf('. '), withinLimit.lastIndexOf('! '), withinLimit.lastIndexOf('? '));
+  const cut = lastEnd >= 0 ? withinLimit.slice(0, lastEnd + 1).trim() : withinLimit;
+  const cutWords = cut.split(/\s+/).filter(Boolean);
   const result: string[] = [];
-  for (let i = 0; i < kept.length; i += MAX_WORDS_PER_P) {
-    result.push('<p>' + kept.slice(i, i + MAX_WORDS_PER_P).join(' ') + '</p>');
+  for (let i = 0; i < cutWords.length; i += MAX_WORDS_PER_P) {
+    result.push('<p>' + cutWords.slice(i, i + MAX_WORDS_PER_P).join(' ') + '</p>');
   }
   return result.join('');
 }
@@ -62,19 +65,20 @@ router.post('/', requireApiKey, async (_req, res) => {
       return res.status(502).json({ error: `Failed to fetch card from Scryfall: ${msg}` });
     }
 
-    // 2. Validate the card image
-    let imageUrl: string | null = card.artCropUrl ?? card.imageUrl;
+    // 2. Use full card image (not art crop); validate it loads
+    let imageUrl: string | null = card.imageUrl ?? card.artCropUrl;
     if (imageUrl) {
       const valid = await isValidImageUrl(imageUrl);
-      if (!valid) imageUrl = card.imageUrl; // fall back to full card image
+      if (!valid && card.artCropUrl && card.artCropUrl !== imageUrl)
+        imageUrl = card.artCropUrl;
       if (imageUrl && !(await isValidImageUrl(imageUrl))) imageUrl = null;
     }
 
     // 3. Generate the blog post with Claude (minimal prompt + short card context to stay under rate limit)
     const cardContext = formatCardForPromptShort(card);
     const anthropic = new Anthropic({ apiKey: cfg.ANTHROPIC_API_KEY });
-    const system = `MTG Card Spotlight. Total length under 150 words. Each <p> max 80 words—split longer. One short hook, one or two key points (ability/strategy or art), one reader question ("Have you used this card?" etc). <h2> + <p> only. Be very brief. Output only JSON.`;
-    const user = `Spotlight this card. Under 150 words total. Each <p> ≤80 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
+    const system = `MTG Card Spotlight. You MUST write 100-150 words total—no more. Structure: (1) One short hook in one <p>. (2) One <p> with one key point—ability or strategy. (3) One <p> ending with a reader question ("Have you used this card?" etc). Use only <h2> and <p>. Count words; stop at 150. Output only JSON.`;
+    const user = `Write a 100-150 word spotlight for this card. Exactly 3 short <p> tags: hook, one key point, then reader question. Do not exceed 150 words.\n\n${cardContext}\n\nJSON: {"title":"...","body":"HTML","tags":["mtg","card-spotlight",...],"excerpt":"..."}`;
 
     const messages: { role: 'user'; content: string }[] = [{ role: 'user', content: user }];
     const createBody = {
