@@ -2,7 +2,7 @@ import { getConfig } from '../config.js';
 
 const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
-const SCOPE = 'w_member_social';
+const SCOPE = 'w_member_social openid profile';
 
 export function getAuthorizationUrl(state: string, redirectUri?: string): string {
   const cfg = getConfig();
