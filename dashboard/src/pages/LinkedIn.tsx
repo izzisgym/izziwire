@@ -63,6 +63,12 @@ export default function LinkedIn() {
       loadStatus();
       window.history.replaceState({}, '', '/linkedin');
     }
+    const err = params.get('error');
+    const msg = params.get('message');
+    if (err) {
+      setError(msg ? decodeURIComponent(msg) : err === 'invalid_state' ? 'Session expired or invalid. Try connecting again.' : 'OAuth failed.');
+      window.history.replaceState({}, '', '/linkedin');
+    }
   }, []);
 
   const publishPost = async () => {

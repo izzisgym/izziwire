@@ -22,14 +22,20 @@ router.get('/linkedin', (req, res) => {
 
 router.get('/linkedin/callback', async (req, res) => {
   const session = req.session as unknown as Record<string, string>;
-  const state = session.oauthState;
-  const redirectUri = session.oauthRedirectUri;
+  const state = session?.oauthState;
+  let redirectUri = session?.oauthRedirectUri;
   const { code, state: queryState } = req.query as { code?: string; state?: string };
 
   if (!code || queryState !== state) {
-    res.status(400).send('Invalid or missing state/code');
+    const base = getConfig().LINKEDIN_REDIRECT_URI?.replace(/\/auth\/linkedin\/callback\/?$/, '') || `${req.protocol}://${req.get('host') ?? req.hostname}`;
+    res.redirect(`${base || ''}/linkedin?error=invalid_state`);
     return;
   }
+
+  if (!redirectUri?.trim()) {
+    redirectUri = getConfig().LINKEDIN_REDIRECT_URI?.trim() || `${req.protocol}://${req.get('host') ?? req.hostname}/auth/linkedin/callback`;
+  }
+  const base = redirectUri.replace(/\/auth\/linkedin\/callback\/?$/, '') || '';
 
   try {
     const tokens = await exchangeCodeForTokens(code, redirectUri);
@@ -54,11 +60,12 @@ router.get('/linkedin/callback', async (req, res) => {
       },
     });
 
-    const base = redirectUri?.replace(/\/auth\/linkedin\/callback\/?$/, '') ?? getConfig().LINKEDIN_REDIRECT_URI?.replace(/\/auth\/linkedin\/callback\/?$/, '') ?? '';
     res.redirect(base ? `${base}/linkedin?connected=1` : '/linkedin?connected=1');
   } catch (e) {
-    console.error('LinkedIn OAuth callback error', e);
-    res.status(500).send('OAuth failed. Check server logs.');
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('LinkedIn OAuth callback error:', msg, e);
+    const safeMsg = encodeURIComponent(msg.slice(0, 200));
+    res.redirect(`${base ? `${base}/linkedin` : '/linkedin'}?error=oauth_failed&message=${safeMsg}`);
   }
 });
 
