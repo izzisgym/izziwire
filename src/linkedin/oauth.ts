@@ -4,30 +4,32 @@ const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 const SCOPE = 'w_member_social';
 
-export function getAuthorizationUrl(state: string): string {
+export function getAuthorizationUrl(state: string, redirectUri?: string): string {
   const cfg = getConfig();
+  const uri = redirectUri ?? cfg.LINKEDIN_REDIRECT_URI ?? '';
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: cfg.LINKEDIN_CLIENT_ID ?? '',
-    redirect_uri: cfg.LINKEDIN_REDIRECT_URI ?? '',
+    redirect_uri: uri,
     state,
     scope: SCOPE,
   });
   return `${LINKEDIN_AUTH_URL}?${params.toString()}`;
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<{
+export async function exchangeCodeForTokens(code: string, redirectUri?: string): Promise<{
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
 }> {
   const cfg = getConfig();
+  const uri = redirectUri ?? cfg.LINKEDIN_REDIRECT_URI ?? '';
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     client_id: cfg.LINKEDIN_CLIENT_ID ?? '',
     client_secret: cfg.LINKEDIN_CLIENT_SECRET ?? '',
-    redirect_uri: cfg.LINKEDIN_REDIRECT_URI ?? '',
+    redirect_uri: uri,
   });
 
   const res = await fetch(LINKEDIN_TOKEN_URL, {

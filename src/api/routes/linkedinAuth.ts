@@ -8,14 +8,22 @@ import { getPrisma } from '../deps.js';
 const router = Router();
 
 router.get('/linkedin', (req, res) => {
+  const cfg = getConfig();
+  const redirectUri =
+    cfg.LINKEDIN_REDIRECT_URI?.trim() ||
+    `${req.protocol}://${req.get('host') ?? req.hostname}/auth/linkedin/callback`;
   const state = crypto.randomBytes(16).toString('hex');
-  (req.session as unknown as Record<string, string>).oauthState = state;
-  const url = getAuthorizationUrl(state);
+  const session = req.session as unknown as Record<string, string>;
+  session.oauthState = state;
+  session.oauthRedirectUri = redirectUri;
+  const url = getAuthorizationUrl(state, redirectUri);
   res.redirect(url);
 });
 
 router.get('/linkedin/callback', async (req, res) => {
-  const state = (req.session as unknown as Record<string, string>).oauthState;
+  const session = req.session as unknown as Record<string, string>;
+  const state = session.oauthState;
+  const redirectUri = session.oauthRedirectUri;
   const { code, state: queryState } = req.query as { code?: string; state?: string };
 
   if (!code || queryState !== state) {
@@ -24,7 +32,7 @@ router.get('/linkedin/callback', async (req, res) => {
   }
 
   try {
-    const tokens = await exchangeCodeForTokens(code);
+    const tokens = await exchangeCodeForTokens(code, redirectUri);
     const me = await getCurrentMember(tokens.access_token);
     const expiresAt = tokens.expires_in
       ? new Date(Date.now() + tokens.expires_in * 1000)
@@ -46,8 +54,7 @@ router.get('/linkedin/callback', async (req, res) => {
       },
     });
 
-    const cfg = getConfig();
-    const base = cfg.LINKEDIN_REDIRECT_URI?.replace(/\/auth\/linkedin\/callback\/?$/, '') ?? '';
+    const base = redirectUri?.replace(/\/auth\/linkedin\/callback\/?$/, '') ?? getConfig().LINKEDIN_REDIRECT_URI?.replace(/\/auth\/linkedin\/callback\/?$/, '') ?? '';
     res.redirect(base ? `${base}/linkedin?connected=1` : '/linkedin?connected=1');
   } catch (e) {
     console.error('LinkedIn OAuth callback error', e);
