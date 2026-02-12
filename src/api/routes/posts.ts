@@ -78,11 +78,37 @@ router.get('/pending', async (_req, res) => {
   }
 });
 
+const platformValues = ['wordpress', 'facebook', 'instagram', 'both'] as const;
+const patchBody = z.object({
+  platform: z.enum(platformValues),
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const post = await workflow.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Not found' });
     return res.json(post);
+  } catch (e) {
+    return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+  }
+});
+
+router.patch('/:id', requireApiKey, async (req, res) => {
+  try {
+    const postId = getParamId(req.params.id);
+    if (!postId) return res.status(400).json({ error: 'Missing post id' });
+    const parsed = patchBody.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+    }
+    const prisma = getPrisma();
+    const post = await prisma.pendingPost.findUnique({ where: { id: postId } });
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    await prisma.pendingPost.update({
+      where: { id: postId },
+      data: { platform: parsed.data.platform },
+    });
+    return res.json({ ok: true, platform: parsed.data.platform });
   } catch (e) {
     return res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
   }

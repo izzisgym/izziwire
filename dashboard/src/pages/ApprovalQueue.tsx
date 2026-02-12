@@ -89,6 +89,21 @@ export default function ApprovalQueue() {
     }
   };
 
+  const handlePlatformChange = async (id: string, platform: string) => {
+    setActionStatus(null);
+    try {
+      const res = await fetch(`${API_BASE}/posts/${id}`, {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ platform }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
+      await fetchPending();
+    } catch (e) {
+      setActionStatus(`Platform update failed: ${e instanceof Error ? e.message : 'error'}`);
+    }
+  };
+
   const handlePublish = async (id: string) => {
     setActionStatus(null);
     try {
@@ -183,6 +198,7 @@ export default function ApprovalQueue() {
           onReject={handleReject}
           onSchedule={handleSchedule}
           onPublish={handlePublish}
+          onPlatformChange={handlePlatformChange}
         />
       ))}
     </>

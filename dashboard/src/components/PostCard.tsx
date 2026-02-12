@@ -17,15 +17,23 @@ export interface PendingPost {
   article?: { title: string; url: string; game: string } | null;
 }
 
+const PLATFORM_OPTIONS = [
+  { value: 'wordpress', label: 'WordPress' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'both', label: 'Facebook & Instagram' },
+] as const;
+
 interface PostCardProps {
   post: PendingPost;
   onApprove: (id: string) => void;
   onReject: (id: string, reason: string) => void;
   onSchedule: (id: string, scheduledFor: string) => void;
   onPublish: (id: string) => void;
+  onPlatformChange: (id: string, platform: string) => void;
 }
 
-export default function PostCard({ post, onApprove, onReject, onSchedule, onPublish }: PostCardProps) {
+export default function PostCard({ post, onApprove, onReject, onSchedule, onPublish, onPlatformChange }: PostCardProps) {
   const [rejectReason, setRejectReason] = useState('');
   const [scheduleDate, setScheduleDate] = useState(() => {
     const d = new Date();
@@ -38,7 +46,6 @@ export default function PostCard({ post, onApprove, onReject, onSchedule, onPubl
   const gameClass = post.generationMetadata?.game ?? post.article?.game?.toLowerCase() ?? '';
   const wpTitle = post.generationMetadata?.wpTitle;
   const wpExcerpt = post.generationMetadata?.wpExcerpt;
-  const isWordPress = post.platform === 'wordpress';
   const isHtml = post.content.includes('<') && post.content.includes('>');
 
   // Truncate content for preview
@@ -50,9 +57,25 @@ export default function PostCard({ post, onApprove, onReject, onSchedule, onPubl
     <div className="card">
       <div className="card-header">
         <div className="card-meta">
-          <span className={`platform-badge ${platformClass}`}>
-            {post.platform}
-          </span>
+          <select
+            value={post.platform}
+            onChange={(e) => onPlatformChange(post.id, e.target.value)}
+            className={`platform-badge platform-select ${platformClass}`}
+            style={{
+              cursor: 'pointer',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid currentColor',
+              fontSize: 'inherit',
+              fontWeight: 600,
+            }}
+          >
+            {PLATFORM_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           {gameClass && (
             <span className={`game-badge ${gameClass}`}>
               {gameClass}
@@ -155,22 +178,15 @@ export default function PostCard({ post, onApprove, onReject, onSchedule, onPubl
       )}
 
       <div className="card-actions">
-        {/* Approve + Publish to WordPress */}
-        {isWordPress ? (
-          <button type="button" className="btn btn-success" onClick={() => onPublish(post.id)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-            Approve &amp; Publish to WordPress
-          </button>
-        ) : (
-          <button type="button" className="btn btn-success" onClick={() => onApprove(post.id)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-            Approve
-          </button>
-        )}
+        <button type="button" className="btn btn-success" onClick={() => onPublish(post.id)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          Approve &amp; Publish
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => onApprove(post.id)} style={{ marginLeft: 4 }}>
+          Approve only
+        </button>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <input
